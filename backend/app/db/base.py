@@ -1,4 +1,4 @@
-"""SQLAlchemy declarative base — models registered in step 2."""
+"""SQLAlchemy declarative base."""
 
 from sqlalchemy.orm import DeclarativeBase
 

@@ -15,8 +15,16 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     DEBUG: bool = True
 
-    # Database (async)
+    # Database (async for app; sync URL derived for Alembic)
     DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/dokan_assistant"
+
+    @property
+    def SYNC_DATABASE_URL(self) -> str:
+        return (
+            self.DATABASE_URL.replace("postgresql+asyncpg://", "postgresql+psycopg://", 1).replace(
+                "postgres+asyncpg://", "postgresql+psycopg://", 1
+            )
+        )
 
     # Auth (wired in step 3)
     JWT_SECRET_KEY: str = "change-me-in-production"
