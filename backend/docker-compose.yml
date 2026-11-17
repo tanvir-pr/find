@@ -1,0 +1,43 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: dokan_assistant
+    ports:
+      - "5432:5432"
+    volumes:
+      - dokan_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d dokan_assistant"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  embedding:
+    # Placeholder for step 9 — replace with real embedding image later
+    image: traefik/whoami:v1.10.1
+    profiles:
+      - full
+    ports:
+      - "8080:80"
+
+  backend:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/dokan_assistant
+      EMBEDDING_BASE_URL: http://embedding:80
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./app:/app/app
+    command: ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+
+volumes:
+  dokan_pgdata:
