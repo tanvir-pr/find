@@ -7,6 +7,7 @@ POS + AI agent backend for stationery / general stores (Phitron final project).
 - Step 1: Scaffold done
 - Step 2: Full schema + Alembic migration done (25 tables + pgvector)
 - Step 3: JWT auth + roles + seed users done
+- Step 4: Products, suppliers, purchases, stock movements done
 
 ## Quick start (local)
 
@@ -59,6 +60,14 @@ scripts/          # seed, ingest (later steps)
 knowledge/        # RAG documents (step 9)
 ```
 
+### Catalog / stock API (Step 4)
+
+- `POST/GET/PATCH/DELETE /api/v1/products` (+ variants)
+- `POST/GET /api/v1/suppliers`
+- `POST/GET /api/v1/purchases` (invoice → batches → stock_movements)
+- `GET /api/v1/stock/variants/{id}`
+- `POST /api/v1/stock/adjustments`
+
 ## Next
 
-Step 4 — Products, purchases, stock movements.
+Step 5 — Sales, payments, returns.
