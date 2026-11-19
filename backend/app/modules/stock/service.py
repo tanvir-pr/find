@@ -8,7 +8,7 @@ from sqlalchemy.orm import selectinload
 from app.core.errors import BusinessRuleError, NotFoundError
 from app.models.enums import StockMovementType
 from app.models.product import Batch, ProductVariant
-from app.models.stock import StockMovement
+from app.models.stock import StockCount, StockCountLine, StockMovement
 from app.models.supplier import PurchaseInvoice, Supplier
 from app.models.user import User
 from app.modules.stock.helpers import get_variant_stock
@@ -16,6 +16,8 @@ from app.modules.stock.schemas import (
     PurchaseCreate,
     PurchaseResponse,
     StockAdjustmentCreate,
+    StockCountCreate,
+    StockCountResponse,
     StockMovementResponse,
     VariantStockResponse,
 )
@@ -160,3 +162,64 @@ async def variant_stock(session: AsyncSession, variant_id: UUID) -> VariantStock
         variant_id=variant_id,
         current_stock=await get_variant_stock(session, variant_id),
     )
+
+
+async def create_stock_count(
+    session: AsyncSession, data: StockCountCreate, user: User
+) -> StockCountResponse:
+    count = StockCount(
+        branch_id=data.branch_id or user.branch_id,
+        counted_by=user.id,
+        note=data.note,
+    )
+    session.add(count)
+    await session.flush()
+
+    for line in data.lines:
+        variant = await session.get(ProductVariant, line.variant_id)
+        if variant is None:
+            raise NotFoundError(f"Variant not found: {line.variant_id}")
+        system_qty = await get_variant_stock(session, line.variant_id)
+        diff = line.counted_qty - system_qty
+        session.add(
+            StockCountLine(
+                stock_count_id=count.id,
+                variant_id=line.variant_id,
+                system_qty=system_qty,
+                counted_qty=line.counted_qty,
+                difference=diff,
+            )
+        )
+        if data.apply_adjustments and diff != 0:
+            session.add(
+                StockMovement(
+                    variant_id=line.variant_id,
+                    movement_type=StockMovementType.adjustment,
+                    qty=diff,
+                    ref_type="stock_count",
+                    ref_id=count.id,
+                    user_id=user.id,
+                    branch_id=data.branch_id or user.branch_id,
+                    note=f"Stock count adjustment ({system_qty} → {line.counted_qty})",
+                )
+            )
+
+    await session.commit()
+    loaded = await session.scalar(
+        select(StockCount)
+        .where(StockCount.id == count.id)
+        .options(selectinload(StockCount.lines))
+    )
+    assert loaded is not None
+    return StockCountResponse.model_validate(loaded)
+
+
+async def list_stock_counts(session: AsyncSession) -> list[StockCountResponse]:
+    rows = (
+        await session.scalars(
+            select(StockCount)
+            .options(selectinload(StockCount.lines))
+            .order_by(StockCount.created_at.desc())
+        )
+    ).all()
+    return [StockCountResponse.model_validate(r) for r in rows]

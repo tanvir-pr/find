@@ -9,6 +9,7 @@ POS + AI agent backend for stationery / general stores (Phitron final project).
 - Step 3: JWT auth + roles + seed users done
 - Step 4: Products, suppliers, purchases, stock movements done
 - Step 5: Sales, payments, returns, receipt logs done
+- Step 6: Shifts, cash closing, stock counts, reports, due reminders done
 
 ## Quick start (local)
 
@@ -76,6 +77,14 @@ knowledge/        # RAG documents (step 9)
 - `POST /api/v1/returns`
 - `POST/GET /api/v1/customers`
 
+### Ops / reports (Step 6)
+
+- `/api/v1/shifts` — open, summary, close + cash closing
+- `/api/v1/stock/counts` — stock count + optional adjustments
+- `/api/v1/reports/sales-summary|low-stock|expiring`
+- `/api/v1/suppliers/{id}/payments`
+- `/api/v1/customers/{id}/history|collections`, `?area=`, due-reminders/run
+
 ## Next
 
-Step 6 — Shifts, cash closing, reports.
+Step 7 — Rich seed data.

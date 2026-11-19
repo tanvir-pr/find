@@ -13,6 +13,8 @@ from app.modules.stock.schemas import (
     PurchaseCreate,
     PurchaseResponse,
     StockAdjustmentCreate,
+    StockCountCreate,
+    StockCountResponse,
     StockMovementResponse,
     VariantStockResponse,
 )
@@ -67,3 +69,24 @@ async def create_adjustment(
     user: Annotated[User, Depends(require_roles(UserRole.admin, UserRole.manager))],
 ) -> StockMovementResponse:
     return await service.adjust_stock(session, body, user)
+
+
+@stock_router.post(
+    "/counts",
+    response_model=StockCountResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_stock_count(
+    body: StockCountCreate,
+    session: Annotated[AsyncSession, Depends(get_db)],
+    user: Annotated[User, Depends(require_roles(UserRole.admin, UserRole.manager))],
+) -> StockCountResponse:
+    return await service.create_stock_count(session, body, user)
+
+
+@stock_router.get("/counts", response_model=list[StockCountResponse])
+async def list_stock_counts(
+    session: Annotated[AsyncSession, Depends(get_db)],
+    _: Annotated[User, Depends(get_current_user)],
+) -> list[StockCountResponse]:
+    return await service.list_stock_counts(session)

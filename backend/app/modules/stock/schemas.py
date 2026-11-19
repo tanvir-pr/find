@@ -72,3 +72,36 @@ class StockMovementResponse(BaseModel):
 class VariantStockResponse(BaseModel):
     variant_id: UUID
     current_stock: Decimal
+
+
+class StockCountLineCreate(BaseModel):
+    variant_id: UUID
+    counted_qty: Decimal = Field(ge=0)
+
+
+class StockCountCreate(BaseModel):
+    lines: list[StockCountLineCreate] = Field(min_length=1)
+    note: str | None = None
+    branch_id: UUID | None = None
+    apply_adjustments: bool = True
+
+
+class StockCountLineResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    variant_id: UUID
+    system_qty: Decimal
+    counted_qty: Decimal
+    difference: Decimal
+
+
+class StockCountResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    branch_id: UUID | None
+    counted_by: UUID | None
+    note: str | None
+    created_at: datetime
+    lines: list[StockCountLineResponse] = []

@@ -26,3 +26,25 @@ class CustomerResponse(BaseModel):
     email: str | None
     created_at: datetime
     current_due: Decimal = Decimal("0")
+
+
+class CustomerHistoryItem(BaseModel):
+    sale_id: UUID
+    bill_no: str
+    total: Decimal
+    created_at: datetime
+
+
+class CollectionCreate(BaseModel):
+    amount: Decimal = Field(gt=0)
+    method: str = Field(default="cash")
+    txn_id: str | None = None
+    note: str | None = None
+
+
+class DueReminderResponse(BaseModel):
+    customer_id: UUID
+    phone: str
+    due: Decimal
+    sms_log_id: UUID
+    body: str
