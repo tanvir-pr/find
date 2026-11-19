@@ -10,6 +10,7 @@ POS + AI agent backend for stationery / general stores (Phitron final project).
 - Step 4: Products, suppliers, purchases, stock movements done
 - Step 5: Sales, payments, returns, receipt logs done
 - Step 6: Shifts, cash closing, stock counts, reports, due reminders done
+- Step 7: Rich demo seed + Swagger E2E verify done
 
 ## Quick start (local)
 
@@ -20,6 +21,7 @@ uv sync
 docker compose up -d db
 uv run alembic upgrade head
 uv run python scripts/seed_users.py
+uv run python scripts/seed_demo.py
 uv run uvicorn app.main:app --reload
 ```
 
@@ -32,7 +34,10 @@ uv run uvicorn app.main:app --reload
 | Email | Password | Role |
 | --- | --- | --- |
 | `admin@dokan.example` | `Admin123!` | admin |
+| `manager@dokan.example` | `Manager123!` | manager |
 | `staff@dokan.example` | `Staff123!` | staff |
+
+Demo catalog barcodes start with `SEED-` (bags, pens, glue/ink expiry, seasonal bottles/caps).
 
 Auth API: `POST /api/v1/auth/register`, `POST /api/v1/auth/login`, `GET /api/v1/auth/me`
 
@@ -85,6 +90,15 @@ knowledge/        # RAG documents (step 9)
 - `/api/v1/suppliers/{id}/payments`
 - `/api/v1/customers/{id}/history|collections`, `?area=`, due-reminders/run
 
+### Demo seed (Step 7)
+
+```bash
+uv run python scripts/seed_demo.py   # idempotent
+uv run python scripts/test_step7.py  # API + OpenAPI smoke
+```
+
+Covers seasonal sales (A7), near-expiry batches (B4/B5), low stock (B6), credit customers/dues (D2/D7).
+
 ## Next
 
-Step 7 — Rich seed data.
+Step 8 — LLM chat + 7 read-only tools.

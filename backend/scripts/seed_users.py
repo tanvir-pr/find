@@ -17,6 +17,12 @@ SEED_USERS = [
         "role": UserRole.admin,
     },
     {
+        "name": "Manager Salma",
+        "email": "manager@dokan.example",
+        "password": "Manager123!",
+        "role": UserRole.manager,
+    },
+    {
         "name": "Cashier Rahim",
         "email": "staff@dokan.example",
         "password": "Staff123!",
