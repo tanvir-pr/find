@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from app.core.config import settings
 from app.core.errors import register_exception_handlers
 from app.modules.auth.router import router as auth_router
+from app.modules.chat.router import router as chat_router
 from app.modules.customers.router import router as customers_router
 from app.modules.products.router import router as products_router
 from app.modules.reports.router import router as reports_router
@@ -29,6 +30,7 @@ app.include_router(sales_router)
 app.include_router(returns_router)
 app.include_router(shifts_router)
 app.include_router(reports_router)
+app.include_router(chat_router)
 
 
 @app.get("/health", tags=["system"])

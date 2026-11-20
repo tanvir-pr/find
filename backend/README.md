@@ -11,6 +11,7 @@ POS + AI agent backend for stationery / general stores (Phitron final project).
 - Step 5: Sales, payments, returns, receipt logs done
 - Step 6: Shifts, cash closing, stock counts, reports, due reminders done
 - Step 7: Rich demo seed + Swagger E2E verify done
+- Step 8: LLM chat + 7 read-only tools done
 
 ## Quick start (local)
 
@@ -99,6 +100,16 @@ uv run python scripts/test_step7.py  # API + OpenAPI smoke
 
 Covers seasonal sales (A7), near-expiry batches (B4/B5), low stock (B6), credit customers/dues (D2/D7).
 
+### Chat / tools (Step 8)
+
+`POST /api/v1/chat` — admin + manager. Set `LLM_*` in `.env` for a real model; empty → mock keyword router.
+
+Tools: `check_stock`, `low_stock_list`, `expiring_items`, `sales_summary`, `reorder_suggestion`, `seasonal_top_products`, `customer_due`.
+
+```bash
+uv run python scripts/test_step8.py
+```
+
 ## Next
 
-Step 8 — LLM chat + 7 read-only tools.
+Step 9 — Knowledge docs + RAG (`search_policy`).
