@@ -144,6 +144,16 @@ class MockLLMClient:
     """Keyword → single tool call, then summarize tool JSON. No API key needed."""
 
     RULES: list[tuple[re.Pattern[str], str, dict[str, Any]]] = [
+        (
+            re.compile(
+                r"ফেরত|রিটার্ন|return|পলিসি|policy|ক্যাশ কম|ক্যাশ ক্লোজ|cash closing|"
+                r"\bTIN\b|\bBIN\b|ট্যাক্স|tax|নতুন কাস্টমারকে|ক্রেডিট লিমিট|"
+                r"অরিজিনাল|ডুপ্লিকেট.*ফেরত|কোন খাতা|কোন কালি",
+                re.I,
+            ),
+            "search_policy",
+            {},
+        ),
         (re.compile(r"বাকি|due|credit|করীম|karim|rahima", re.I), "customer_due", {}),
         (re.compile(r"মৌসুম|season|শীত|গরম|winter|summer|জানুয়ার|january", re.I), "seasonal_top_products", {"season": "winter_start"}),
         (re.compile(r"অর্ডার|reorder|কিনতে|order", re.I), "reorder_suggestion", {"cover_days": 14}),
@@ -185,6 +195,8 @@ class MockLLMClient:
                 call_args = dict(args)
                 if name == "check_stock":
                     call_args["query"] = user_text.strip()[:80] or "School Bag"
+                if name == "search_policy":
+                    call_args["query"] = user_text.strip()[:200]
                 if name == "customer_due":
                     if re.search(r"karim|করীম|করিম", user_text, re.I):
                         call_args["query"] = "Karim"
@@ -223,7 +235,14 @@ class MockLLMClient:
 
 
 def get_llm_client() -> OpenAICompatibleClient | MockLLMClient:
-    real = OpenAICompatibleClient()
+    from app.core.config import get_settings
+
+    s = get_settings()
+    real = OpenAICompatibleClient(
+        api_key=s.LLM_API_KEY,
+        base_url=s.LLM_BASE_URL,
+        model=s.LLM_MODEL,
+    )
     if real.configured:
         return real
     return MockLLMClient()

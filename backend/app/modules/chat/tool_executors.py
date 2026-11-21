@@ -21,6 +21,7 @@ from app.models.sales import Payment, Sale, SaleItem
 from app.models.user import User
 from app.modules.chat.tool_defs import STAFF_ALLOWED_TOOLS
 from app.modules.customers.service import get_customer_due
+from app.modules.knowledge.service import search_policy as knowledge_search
 from app.modules.reports import service as reports_service
 from app.modules.stock.helpers import get_variant_stock
 
@@ -367,6 +368,13 @@ async def customer_due(session: AsyncSession, user: User, args: dict[str, Any]) 
     return _dump({"customers": results, "count": len(results)})
 
 
+async def search_policy(session: AsyncSession, user: User, args: dict[str, Any]) -> str:
+    _assert_tool_allowed(user, "search_policy")
+    query = str(args.get("query") or "").strip()
+    result = await knowledge_search(session, query)
+    return _dump(result)
+
+
 EXECUTORS = {
     "check_stock": check_stock,
     "low_stock_list": low_stock_list,
@@ -375,6 +383,7 @@ EXECUTORS = {
     "reorder_suggestion": reorder_suggestion,
     "seasonal_top_products": seasonal_top_products,
     "customer_due": customer_due,
+    "search_policy": search_policy,
 }
 
 

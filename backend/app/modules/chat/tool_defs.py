@@ -1,4 +1,4 @@
-"""OpenAI-style tool schemas for the 7 read-only assistant tools."""
+"""OpenAI-style tool schemas for assistant tools (7 ops + search_policy)."""
 
 from __future__ import annotations
 
@@ -157,10 +157,32 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "search_policy",
+            "description": (
+                "দোকানের নিয়ম/পলিসি/গাইড ডকুমেন্ট থেকে খোঁজে (রিটার্ন, বাকি নিয়ম, "
+                "ক্যাশ ক্লোজিং, পণ্য গাইড, ট্যাক্স)। ডকুমেন্টে না থাকলে অনুমান করবেন না।"
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "পলিসি বা নিয়ম সংক্রান্ত প্রশ্ন",
+                    },
+                },
+                "required": ["query"],
+            },
+        },
+    },
 ]
 
 # Tools staff may use if chat is later opened to them
-STAFF_ALLOWED_TOOLS = frozenset({"check_stock", "low_stock_list", "expiring_items"})
+STAFF_ALLOWED_TOOLS = frozenset(
+    {"check_stock", "low_stock_list", "expiring_items", "search_policy"}
+)
 
 
 def tools_for_role(role: UserRole) -> list[dict[str, Any]]:

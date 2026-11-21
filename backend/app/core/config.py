@@ -35,7 +35,14 @@ class Settings(BaseSettings):
     LLM_API_KEY: str = ""
     LLM_BASE_URL: str = ""
     LLM_MODEL: str = ""
-    EMBEDDING_BASE_URL: str = "http://localhost:8080"
+    # gemini | mock — empty key falls back to mock
+    EMBEDDING_PROVIDER: str = "gemini"
+    EMBEDDING_API_KEY: str = ""  # defaults to LLM_API_KEY
+    EMBEDDING_MODEL: str = "gemini-embedding-001"
+    EMBEDDING_BASE_URL: str = "https://generativelanguage.googleapis.com/v1beta"
+    # Max cosine distance to accept a RAG hit (lower = closer). Mock embeddings are noisier.
+    # Cosine distance threshold (0=identical). Mock vectors need a looser cutoff.
+    RAG_MAX_DISTANCE: float = 0.72
 
     # MCP (wired in step 10)
     MCP_API_KEY: str = "change-me-mcp-key"

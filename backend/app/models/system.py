@@ -10,7 +10,7 @@ from app.db.base import Base
 from app.models.enums import SmsPurpose, SyncStatus
 from app.models.mixins import TimestampMixin, UUIDPrimaryKeyMixin
 
-# Default embedding size; adjust when embedding service is chosen (step 9).
+# Matches Gemini gemini-embedding-001 with outputDimensionality=768.
 EMBEDDING_DIM = 768
 
 

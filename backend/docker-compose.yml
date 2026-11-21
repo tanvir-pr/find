@@ -15,8 +15,8 @@ services:
       timeout: 5s
       retries: 10
 
+  # Embeddings default to Gemini API (EMBEDDING_* / LLM_API_KEY). Optional local stub:
   embedding:
-    # Placeholder for step 9 — replace with real embedding image later
     image: traefik/whoami:v1.10.1
     profiles:
       - full
@@ -31,12 +31,12 @@ services:
       - .env
     environment:
       DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/dokan_assistant
-      EMBEDDING_BASE_URL: http://embedding:80
     depends_on:
       db:
         condition: service_healthy
     volumes:
       - ./app:/app/app
+      - ./knowledge:/app/knowledge
     command: ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
 
 volumes:

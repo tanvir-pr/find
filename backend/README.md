@@ -12,6 +12,7 @@ POS + AI agent backend for stationery / general stores (Phitron final project).
 - Step 6: Shifts, cash closing, stock counts, reports, due reminders done
 - Step 7: Rich demo seed + Swagger E2E verify done
 - Step 8: LLM chat + 7 read-only tools done
+- Step 9: Knowledge docs + RAG `search_policy` done
 
 ## Quick start (local)
 
@@ -104,12 +105,21 @@ Covers seasonal sales (A7), near-expiry batches (B4/B5), low stock (B6), credit 
 
 `POST /api/v1/chat` — admin + manager. Set `LLM_*` in `.env` for a real model; empty → mock keyword router.
 
-Tools: `check_stock`, `low_stock_list`, `expiring_items`, `sales_summary`, `reorder_suggestion`, `seasonal_top_products`, `customer_due`.
+Tools: `check_stock`, `low_stock_list`, `expiring_items`, `sales_summary`, `reorder_suggestion`, `seasonal_top_products`, `customer_due`, `search_policy`.
 
 ```bash
 uv run python scripts/test_step8.py
 ```
 
+### RAG (Step 9)
+
+Knowledge markdown in `knowledge/`. Embeddings: Gemini `gemini-embedding-001` (768-d), or mock if no key.
+
+```bash
+uv run python scripts/ingest_knowledge.py
+uv run python scripts/test_step9.py
+```
+
 ## Next
 
-Step 9 — Knowledge docs + RAG (`search_policy`).
+Step 10 — MCP HTTP + stdio.
