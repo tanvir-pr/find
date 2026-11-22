@@ -15,3 +15,7 @@ Thumbs.db
 **/__pycache__/
 **/.venv/
 **/.ruff_cache/
+
+# Logs
+frontend/frontend-dev.log
+*.log
