@@ -13,6 +13,7 @@ POS + AI agent backend for stationery / general stores (Phitron final project).
 - Step 7: Rich demo seed + Swagger E2E verify done
 - Step 8: LLM chat + 7 read-only tools done
 - Step 9: Knowledge docs + RAG `search_policy` done
+- Step 10: MCP HTTP + stdio (3 tools, catalog resource, daily prompt) done
 
 ## Quick start (local)
 
@@ -120,6 +121,20 @@ uv run python scripts/ingest_knowledge.py
 uv run python scripts/test_step9.py
 ```
 
+### MCP (Step 10)
+
+HTTP (API key required): `POST /mcp/` with `Authorization: Bearer <MCP_API_KEY>` or `X-API-Key`.
+
+Tools: `check_stock`, `sales_summary`, `low_stock_list`  
+Resource: `dokan://catalog`  
+Prompt: `daily_sales_report`
+
+stdio (Claude Desktop):
+```bash
+uv run python scripts/run_mcp_stdio.py
+uv run python scripts/test_step10.py
+```
+
 ## Next
 
-Step 10 — MCP HTTP + stdio.
+Step 11 — Next.js portal.
