@@ -108,7 +108,9 @@ async def main() -> None:
         # --- suppliers ---
         suppliers = await client.get("/api/v1/suppliers", headers=headers)
         assert suppliers.status_code == 200
-        assert any("Seed Stationery" in s["name"] for s in suppliers.json())
+        assert any("নবাবপুর" in s["name"] or "Nawabpur" in s["name"] for s in suppliers.json()), (
+            suppliers.json()
+        )
         print("ok suppliers")
 
         # --- openapi / swagger surface ---

@@ -23,11 +23,13 @@ def _messages_to_openai(messages: list[ChatMessage]) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
     for m in messages:
         item: dict[str, Any] = {"role": m.role}
-        if m.content is not None:
+        # Always include content for assistant/tool turns (null when tool-only).
+        if m.role in ("assistant", "tool", "system", "user"):
             item["content"] = m.content
         if m.tool_calls:
-            item["tool_calls"] = [
-                {
+            serialized: list[dict[str, Any]] = []
+            for tc in m.tool_calls:
+                entry: dict[str, Any] = {
                     "id": tc.id,
                     "type": "function",
                     "function": {
@@ -35,8 +37,11 @@ def _messages_to_openai(messages: list[ChatMessage]) -> list[dict[str, Any]]:
                         "arguments": json.dumps(tc.arguments, ensure_ascii=False),
                     },
                 }
-                for tc in m.tool_calls
-            ]
+                # Required by Gemini thinking models on the tool-result turn.
+                if tc.extra_content:
+                    entry["extra_content"] = tc.extra_content
+                serialized.append(entry)
+            item["tool_calls"] = serialized
         if m.tool_call_id:
             item["tool_call_id"] = m.tool_call_id
         if m.name and m.role == "tool":
@@ -56,11 +61,13 @@ def _parse_tool_calls(raw_calls: list[dict[str, Any]] | None) -> list[ToolCall]:
             args = json.loads(args_raw) if isinstance(args_raw, str) else dict(args_raw)
         except json.JSONDecodeError:
             args = {}
+        extra = call.get("extra_content")
         parsed.append(
             ToolCall(
                 id=call.get("id") or f"call_{uuid.uuid4().hex[:12]}",
                 name=fn.get("name") or "",
                 arguments=args if isinstance(args, dict) else {},
+                extra_content=extra if isinstance(extra, dict) else None,
             )
         )
     return parsed

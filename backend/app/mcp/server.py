@@ -35,7 +35,7 @@ mcp = MCPServer(
     name="check_stock",
     description=(
         "Look up current stock and prices by product name, variant, or barcode. "
-        "Example: School Bag, SEED-PEN-ORIG."
+        "Example: School Bag, Ball Pen Red, SEED-PEN-ORIG."
     ),
 )
 async def check_stock(query: str) -> str:

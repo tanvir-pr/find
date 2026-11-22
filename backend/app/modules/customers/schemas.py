@@ -14,6 +14,14 @@ class CustomerCreate(BaseModel):
     email: str | None = None
 
 
+class CustomerUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=160)
+    area: str | None = Field(default=None, max_length=120)
+    credit_limit: Decimal | None = Field(default=None, ge=0)
+    offer_opt_in: bool | None = None
+    email: str | None = None
+
+
 class CustomerResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

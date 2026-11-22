@@ -16,6 +16,7 @@ from app.modules.customers.schemas import (
     CustomerCreate,
     CustomerHistoryItem,
     CustomerResponse,
+    CustomerUpdate,
     DueReminderResponse,
 )
 
@@ -76,6 +77,20 @@ async def get_customer(session: AsyncSession, customer_id: UUID) -> CustomerResp
     customer = await session.get(Customer, customer_id)
     if customer is None:
         raise NotFoundError("Customer not found")
+    return await _to_response(session, customer)
+
+
+async def update_customer(
+    session: AsyncSession, customer_id: UUID, data: CustomerUpdate
+) -> CustomerResponse:
+    customer = await session.get(Customer, customer_id)
+    if customer is None:
+        raise NotFoundError("Customer not found")
+    payload = data.model_dump(exclude_unset=True)
+    for key, value in payload.items():
+        setattr(customer, key, value)
+    await session.commit()
+    await session.refresh(customer)
     return await _to_response(session, customer)
 
 

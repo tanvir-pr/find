@@ -14,6 +14,8 @@ class ToolCall:
     id: str
     name: str
     arguments: dict[str, Any]
+    # Gemini OpenAI-compat needs this on follow-up turns (thought_signature).
+    extra_content: dict[str, Any] | None = None
 
 
 @dataclass

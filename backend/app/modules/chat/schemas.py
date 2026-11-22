@@ -22,4 +22,4 @@ class ToolInvocation(BaseModel):
 class ChatResponse(BaseModel):
     reply: str
     tools_used: list[ToolInvocation] = Field(default_factory=list)
-    provider: Literal["openai_compatible", "mock"]
+    provider: Literal["openai_compatible", "mock", "mock_fallback"]

@@ -1,18 +1,19 @@
-"""Rich demo seed (Step 7). Idempotent — safe to re-run.
+"""Shop demo seed (Step 7). Idempotent — use --force to wipe business data and reseed.
 
-Covers demo data for:
+Covers demo scenarios for:
   A7 seasonal/version sales, B4/B5 expiry, B6 low stock,
   D2 credit sales, D7 credit limit customers.
 """
 
 from __future__ import annotations
 
+import argparse
 import asyncio
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import select, update
+from sqlalchemy import select, text, update
 
 from app.core.security import hash_password
 from app.db.session import AsyncSessionLocal
@@ -29,12 +30,50 @@ from app.models.user import User
 UTC = ZoneInfo("UTC")
 SEED_MARKER = "SEED-BAG-ORIG"
 
+# Business tables only — keep users, branches, knowledge_chunks.
+BUSINESS_TABLES = (
+    "receipt_logs",
+    "sms_logs",
+    "sync_logs",
+    "commission_entries",
+    "deliveries",
+    "returns",
+    "payments",
+    "sale_items",
+    "sales",
+    "cash_closings",
+    "shifts",
+    "stock_count_lines",
+    "stock_counts",
+    "stock_movements",
+    "batches",
+    "purchase_invoices",
+    "product_variants",
+    "products",
+    "customers",
+    "suppliers",
+    "vans",
+    "commission_rules",
+)
+
+
+async def _wipe_business_data(session) -> None:
+    tables = ", ".join(BUSINESS_TABLES)
+    await session.execute(text(f"TRUNCATE TABLE {tables} RESTART IDENTITY CASCADE"))
+    await session.commit()
+    print("  wiped business tables (dummy/test rows removed)")
+
 
 async def _ensure_user(
     session, *, name: str, email: str, password: str, role: UserRole, branch_id
 ) -> User:
     user = await session.scalar(select(User).where(User.email == email))
     if user:
+        user.name = name
+        user.role = role
+        user.is_active = True
+        user.branch_id = branch_id
+        await session.flush()
         return user
     user = User(
         name=name,
@@ -53,12 +92,17 @@ async def _ensure_user(
 async def _ensure_branch(session) -> Branch:
     branch = await session.scalar(select(Branch).where(Branch.code == "MAIN"))
     if branch:
+        branch.name = "মিরপুর স্টেশনারি শপ"
+        branch.address = "Mirpur-10, Dhaka"
+        branch.phone = "01711001100"
+        branch.is_active = True
+        await session.flush()
         return branch
     branch = Branch(
-        name="Main Shop",
+        name="মিরপুর স্টেশনারি শপ",
         code="MAIN",
         address="Mirpur-10, Dhaka",
-        phone="01700000000",
+        phone="01711001100",
         is_active=True,
     )
     session.add(branch)
@@ -72,19 +116,32 @@ def _dt(year: int, month: int, day: int, hour: int = 10) -> datetime:
 
 
 async def main() -> None:
-    async with AsyncSessionLocal() as session:
-        existing = await session.scalar(
-            select(ProductVariant).where(ProductVariant.barcode == SEED_MARKER)
-        )
-        if existing:
-            print("seed_demo already applied (SEED-BAG-ORIG exists) — skip")
-            return
+    parser = argparse.ArgumentParser(description="Seed realistic shop demo data")
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Wipe products/sales/customers/etc. then reseed clean data",
+    )
+    args = parser.parse_args()
 
-        print("seeding demo data…")
+    async with AsyncSessionLocal() as session:
+        if args.force:
+            print("force reseeding…")
+            await _wipe_business_data(session)
+        else:
+            existing = await session.scalar(
+                select(ProductVariant).where(ProductVariant.barcode == SEED_MARKER)
+            )
+            if existing:
+                print("seed_demo already applied (SEED-BAG-ORIG exists) — skip")
+                print("tip: uv run python scripts/seed_demo.py --force")
+                return
+
+        print("seeding shop data…")
         branch = await _ensure_branch(session)
         admin = await _ensure_user(
             session,
-            name="Shop Owner",
+            name="দোকান মালিক রফিক",
             email="admin@dokan.example",
             password="Admin123!",
             role=UserRole.admin,
@@ -92,7 +149,7 @@ async def main() -> None:
         )
         manager = await _ensure_user(
             session,
-            name="Manager Salma",
+            name="ম্যানেজার সালমা",
             email="manager@dokan.example",
             password="Manager123!",
             role=UserRole.manager,
@@ -100,30 +157,30 @@ async def main() -> None:
         )
         staff = await _ensure_user(
             session,
-            name="Cashier Rahim",
+            name="ক্যাশিয়ার রহিম",
             email="staff@dokan.example",
             password="Staff123!",
             role=UserRole.staff,
             branch_id=branch.id,
         )
-        _ = manager  # used by login demos / reports by role
+        _ = manager
 
-        # --- suppliers ---
+        # --- suppliers (real Dhaka wholesale areas) ---
         stationery = Supplier(
-            name="Seed Stationery Wholesaler",
-            phone="01811111111",
-            address="Nawabpur, Dhaka",
+            name="নবাবপুর স্টেশনারি সাপ্লাই",
+            phone="01811112233",
+            address="Nawabpur Road, Dhaka",
         )
-        cosmetics = Supplier(
-            name="Seed Glue & Ink Co",
-            phone="01822222222",
+        adhesives = Supplier(
+            name="চকবাজার আঠা ও কালি সেন্টার",
+            phone="01822223344",
             address="Chawk Bazar, Dhaka",
         )
-        session.add_all([stationery, cosmetics])
+        session.add_all([stationery, adhesives])
         await session.flush()
         print("  suppliers")
 
-        # --- catalog (A2 dual price, D4 variants, B4 expiry flag) ---
+        # --- catalog ---
         products_spec = [
             {
                 "name": "School Bag",
@@ -237,6 +294,34 @@ async def main() -> None:
                     },
                 ],
             },
+            {
+                "name": "Geometry Box",
+                "category": "instruments",
+                "tracks_expiry": False,
+                "variants": [
+                    {
+                        "name": "Plastic",
+                        "barcode": "SEED-GEO-BOX",
+                        "retail": "180.00",
+                        "dealer": "140.00",
+                        "low": "12",
+                    },
+                ],
+            },
+            {
+                "name": "Eraser White",
+                "category": "stationery",
+                "tracks_expiry": False,
+                "variants": [
+                    {
+                        "name": "Standard",
+                        "barcode": "SEED-ERASER-01",
+                        "retail": "10.00",
+                        "dealer": "6.00",
+                        "low": "40",
+                    },
+                ],
+            },
         ]
 
         variant_by_barcode: dict[str, ProductVariant] = {}
@@ -265,36 +350,35 @@ async def main() -> None:
                 variant_by_barcode[v["barcode"]] = variant
         print(f"  products/variants ({len(variant_by_barcode)})")
 
-        # --- purchases + batches + stock_movements ---
         today = date.today()
         purchase_lines: list[tuple[str, str, Decimal, Decimal, date | None, Supplier]] = [
-            # barcode, invoice_no, qty, cost, expiry, supplier
-            (SEED_MARKER, "SEED-PUR-BAG-1", Decimal("40"), Decimal("650.00"), None, stationery),
-            ("SEED-BAG-DUP", "SEED-PUR-BAG-1", Decimal("50"), Decimal("320.00"), None, stationery),
-            ("SEED-PEN-ORIG", "SEED-PUR-PEN-1", Decimal("200"), Decimal("8.00"), None, stationery),
-            ("SEED-PEN-DUP", "SEED-PUR-PEN-1", Decimal("300"), Decimal("4.00"), None, stationery),
-            ("SEED-NOTE-80", "SEED-PUR-NOTE-1", Decimal("100"), Decimal("30.00"), None, stationery),
+            (SEED_MARKER, "PUR-BAG-2401", Decimal("40"), Decimal("650.00"), None, stationery),
+            ("SEED-BAG-DUP", "PUR-BAG-2401", Decimal("50"), Decimal("320.00"), None, stationery),
+            ("SEED-PEN-ORIG", "PUR-PEN-2401", Decimal("200"), Decimal("8.00"), None, stationery),
+            ("SEED-PEN-DUP", "PUR-PEN-2401", Decimal("300"), Decimal("4.00"), None, stationery),
+            ("SEED-NOTE-80", "PUR-NOTE-2401", Decimal("100"), Decimal("30.00"), None, stationery),
+            ("SEED-GEO-BOX", "PUR-NOTE-2401", Decimal("40"), Decimal("120.00"), None, stationery),
+            ("SEED-ERASER-01", "PUR-NOTE-2401", Decimal("150"), Decimal("4.00"), None, stationery),
             (
                 "SEED-GLUE-20",
-                "SEED-PUR-GLUE-1",
+                "PUR-GLUE-2401",
                 Decimal("60"),
                 Decimal("35.00"),
                 today + timedelta(days=12),
-                cosmetics,
+                adhesives,
             ),
             (
                 "SEED-INK-60",
-                "SEED-PUR-INK-1",
+                "PUR-INK-2401",
                 Decimal("40"),
                 Decimal("50.00"),
                 today + timedelta(days=5),
-                cosmetics,
+                adhesives,
             ),
-            ("SEED-BOTTLE-1L", "SEED-PUR-BOT-1", Decimal("80"), Decimal("70.00"), None, stationery),
-            ("SEED-CAP-ADULT", "SEED-PUR-CAP-1", Decimal("30"), Decimal("120.00"), None, stationery),
+            ("SEED-BOTTLE-1L", "PUR-BOT-2401", Decimal("80"), Decimal("70.00"), None, stationery),
+            ("SEED-CAP-ADULT", "PUR-CAP-2401", Decimal("30"), Decimal("120.00"), None, stationery),
         ]
 
-        # group by invoice_no
         invoices: dict[str, list] = {}
         for row in purchase_lines:
             invoices.setdefault(row[1], []).append(row)
@@ -335,12 +419,11 @@ async def main() -> None:
                         ref_id=inv.id,
                         user_id=admin.id,
                         branch_id=branch.id,
-                        note="seed purchase",
+                        note="opening stock purchase",
                     )
                 )
         print("  purchases/batches")
 
-        # --- customers (D2/D7) ---
         karim = Customer(
             name="Karim Dealer",
             phone="01910000001",
@@ -377,7 +460,7 @@ async def main() -> None:
             customer: Customer | None = None,
             discount: Decimal = Decimal("0"),
             shift_id=None,
-            bill_prefix: str = "SEED",
+            bill_prefix: str = "BILL",
         ) -> Sale:
             nonlocal bill_seq
             bill_seq += 1
@@ -406,17 +489,18 @@ async def main() -> None:
             session.add(sale)
             await session.flush()
             for variant, batch, qty, unit in line_rows:
-                item = SaleItem(
-                    sale_id=sale.id,
-                    variant_id=variant.id,
-                    batch_id=batch.id,
-                    qty=qty,
-                    unit_price=unit,
-                    discount=Decimal("0"),
-                    created_at=when,
-                    updated_at=when,
+                session.add(
+                    SaleItem(
+                        sale_id=sale.id,
+                        variant_id=variant.id,
+                        batch_id=batch.id,
+                        qty=qty,
+                        unit_price=unit,
+                        discount=Decimal("0"),
+                        created_at=when,
+                        updated_at=when,
+                    )
                 )
-                session.add(item)
                 session.add(
                     StockMovement(
                         variant_id=variant.id,
@@ -447,7 +531,6 @@ async def main() -> None:
                 )
             return sale
 
-        # A7 — winter (Jan): Original bags outsell Duplicate; wool caps sell
         year = today.year if today.month >= 2 else today.year - 1
         for day, qty_orig, qty_dup in [(8, 3, 1), (15, 4, 1), (22, 5, 2)]:
             await make_sale(
@@ -458,21 +541,16 @@ async def main() -> None:
                     ("SEED-BAG-DUP", Decimal(qty_dup), None),
                     ("SEED-CAP-ADULT", Decimal("2"), None),
                 ],
-                payments=[(PaymentMethod.cash, Decimal("0"))],  # filled below
-                bill_prefix="SEED-WIN",
+                payments=[(PaymentMethod.cash, Decimal("0"))],
+                bill_prefix="WIN",
             )
-        # Fix winter payment amounts after we know totals — simpler: set cash = total via update loop
-        winter_sales = (
-            await session.scalars(select(Sale).where(Sale.bill_no.like("SEED-WIN-%")))
-        ).all()
-        for sale in winter_sales:
+        for sale in (
+            await session.scalars(select(Sale).where(Sale.bill_no.like("WIN-%")))
+        ).all():
             await session.execute(
-                update(Payment)
-                .where(Payment.sale_id == sale.id)
-                .values(amount=sale.total)
+                update(Payment).where(Payment.sale_id == sale.id).values(amount=sale.total)
             )
 
-        # A7 — summer (Jun): water bottles dominate
         for day, qty in [(5, 6), (12, 8), (20, 10)]:
             await make_sale(
                 when=_dt(year, 6, day, 14),
@@ -482,19 +560,15 @@ async def main() -> None:
                     ("SEED-PEN-ORIG", Decimal("10"), None),
                 ],
                 payments=[(PaymentMethod.bkash, Decimal("0"))],
-                bill_prefix="SEED-SUM",
+                bill_prefix="SUM",
             )
-        summer_sales = (
-            await session.scalars(select(Sale).where(Sale.bill_no.like("SEED-SUM-%")))
-        ).all()
-        for sale in summer_sales:
+        for sale in (
+            await session.scalars(select(Sale).where(Sale.bill_no.like("SUM-%")))
+        ).all():
             await session.execute(
-                update(Payment)
-                .where(Payment.sale_id == sale.id)
-                .values(amount=sale.total)
+                update(Payment).where(Payment.sale_id == sale.id).values(amount=sale.total)
             )
 
-        # Recent open shift + today's sales (cash closing demo leftover open for staff)
         shift = Shift(
             user_id=staff.id,
             branch_id=branch.id,
@@ -504,55 +578,49 @@ async def main() -> None:
         session.add(shift)
         await session.flush()
 
-        # B4 — expiry discount sale on glue
         glue_retail = variant_by_barcode["SEED-GLUE-20"].retail_price
-        discounted = glue_retail * Decimal("0.7")  # 30% off near expiry
+        discounted = glue_retail * Decimal("0.7")
         await make_sale(
             when=datetime.now(UTC) - timedelta(hours=2),
             cashier=staff,
             items=[("SEED-GLUE-20", Decimal("5"), discounted)],
             payments=[(PaymentMethod.cash, discounted * 5)],
-            discount=Decimal("0"),
             shift_id=shift.id,
-            bill_prefix="SEED-TODAY",
+            bill_prefix="TODAY",
         )
 
-        # cash + nagad retail today
         await make_sale(
             when=datetime.now(UTC) - timedelta(hours=1),
             cashier=staff,
             items=[
                 ("SEED-NOTE-80", Decimal("4"), None),
                 ("SEED-PEN-DUP", Decimal("20"), None),
+                ("SEED-ERASER-01", Decimal("5"), None),
             ],
             payments=[
                 (PaymentMethod.cash, Decimal("100.00")),
                 (PaymentMethod.nagad, Decimal("240.00")),
             ],
             shift_id=shift.id,
-            bill_prefix="SEED-TODAY",
+            bill_prefix="TODAY",
         )
-        # Fix second today sale payment to match actual total if needed
         today_sales = (
             await session.scalars(
-                select(Sale).where(Sale.bill_no.like("SEED-TODAY-%")).order_by(Sale.bill_no)
+                select(Sale).where(Sale.bill_no.like("TODAY-%")).order_by(Sale.bill_no)
             )
         ).all()
         if len(today_sales) >= 2:
             sale2 = today_sales[1]
-            # redistribute: keep structure, adjust nagad = total - cash
             cash_amt = Decimal("100.00")
             nagad_amt = sale2.total - cash_amt
-            pays = (
+            for p in (
                 await session.scalars(select(Payment).where(Payment.sale_id == sale2.id))
-            ).all()
-            for p in pays:
+            ).all():
                 if p.method == PaymentMethod.cash:
                     p.amount = cash_amt
                 elif p.method == PaymentMethod.nagad:
                     p.amount = nagad_amt
 
-        # D2/D7 — credit sale to Karim (within limit)
         await make_sale(
             when=datetime.now(UTC) - timedelta(minutes=30),
             cashier=staff,
@@ -563,19 +631,15 @@ async def main() -> None:
             ],
             payments=[(PaymentMethod.credit, Decimal("0"))],
             shift_id=shift.id,
-            bill_prefix="SEED-CR",
+            bill_prefix="CR",
         )
-        credit_sales = (
-            await session.scalars(select(Sale).where(Sale.bill_no.like("SEED-CR-%")))
-        ).all()
-        for sale in credit_sales:
+        for sale in (await session.scalars(select(Sale).where(Sale.bill_no.like("CR-%")))).all():
             await session.execute(
                 update(Payment)
                 .where(Payment.sale_id == sale.id)
                 .values(amount=sale.total, customer_id=karim.id)
             )
 
-        # Partial collection from Karim
         session.add(
             Payment(
                 payment_type=PaymentType.customer_collection,
@@ -583,12 +647,11 @@ async def main() -> None:
                 method=PaymentMethod.bkash,
                 amount=Decimal("500.00"),
                 user_id=admin.id,
-                note="seed partial collection",
-                txn_id="SEED-COLLECT-001",
+                note="partial collection from Karim",
+                txn_id="COLLECT-KARIM-001",
             )
         )
 
-        # Small credit due for Rahima
         await make_sale(
             when=datetime.now(UTC) - timedelta(minutes=20),
             cashier=staff,
@@ -596,36 +659,28 @@ async def main() -> None:
             items=[("SEED-NOTE-80", Decimal("10"), None)],
             payments=[(PaymentMethod.credit, Decimal("0"))],
             shift_id=shift.id,
-            bill_prefix="SEED-CRR",
+            bill_prefix="CRR",
         )
-        for sale in (
-            await session.scalars(select(Sale).where(Sale.bill_no.like("SEED-CRR-%")))
-        ).all():
+        for sale in (await session.scalars(select(Sale).where(Sale.bill_no.like("CRR-%")))).all():
             await session.execute(
                 update(Payment)
                 .where(Payment.sale_id == sale.id)
                 .values(amount=sale.total, customer_id=rahima.id)
             )
 
-        # B6 — burn down pens original toward low stock (threshold 50)
         await make_sale(
             when=datetime.now(UTC) - timedelta(minutes=10),
             cashier=staff,
             items=[("SEED-PEN-ORIG", Decimal("120"), None)],
             payments=[(PaymentMethod.cash, Decimal("0"))],
             shift_id=shift.id,
-            bill_prefix="SEED-LOW",
+            bill_prefix="LOW",
         )
-        for sale in (
-            await session.scalars(select(Sale).where(Sale.bill_no.like("SEED-LOW-%")))
-        ).all():
+        for sale in (await session.scalars(select(Sale).where(Sale.bill_no.like("LOW-%")))).all():
             await session.execute(
-                update(Payment)
-                .where(Payment.sale_id == sale.id)
-                .values(amount=sale.total)
+                update(Payment).where(Payment.sale_id == sale.id).values(amount=sale.total)
             )
 
-        # Closed historical shift with cash closing (B14 sample)
         closed_shift = Shift(
             user_id=staff.id,
             branch_id=branch.id,
@@ -641,13 +696,12 @@ async def main() -> None:
                 expected_cash=Decimal("1850.00"),
                 counted_cash=Decimal("1840.00"),
                 difference=Decimal("-10.00"),
-                note="seed sample short by 10",
+                note="cash short by 10 BDT",
             )
         )
 
-        # Supplier partial payment
         first_inv = await session.scalar(
-            select(PurchaseInvoice).where(PurchaseInvoice.invoice_no == "SEED-PUR-BAG-1")
+            select(PurchaseInvoice).where(PurchaseInvoice.invoice_no == "PUR-BAG-2401")
         )
         session.add(
             Payment(
@@ -657,8 +711,8 @@ async def main() -> None:
                 method=PaymentMethod.cash,
                 amount=Decimal("10000.00"),
                 user_id=admin.id,
-                note="seed supplier payment",
-                txn_id="SEED-SUPPAY-001",
+                note="partial supplier payment",
+                txn_id="SUPPAY-NAWABPUR-001",
             )
         )
 

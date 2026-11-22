@@ -14,6 +14,7 @@ from app.modules.customers.schemas import (
     CustomerCreate,
     CustomerHistoryItem,
     CustomerResponse,
+    CustomerUpdate,
     DueReminderResponse,
 )
 
@@ -56,6 +57,16 @@ async def get_customer(
     _: Annotated[User, Depends(get_current_user)],
 ) -> CustomerResponse:
     return await service.get_customer(session, customer_id)
+
+
+@router.patch("/{customer_id}", response_model=CustomerResponse)
+async def update_customer(
+    customer_id: UUID,
+    body: CustomerUpdate,
+    session: Annotated[AsyncSession, Depends(get_db)],
+    _: Annotated[User, Depends(require_roles(UserRole.admin, UserRole.manager))],
+) -> CustomerResponse:
+    return await service.update_customer(session, customer_id, body)
 
 
 @router.get("/{customer_id}/history", response_model=list[CustomerHistoryItem])

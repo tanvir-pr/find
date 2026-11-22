@@ -14,6 +14,7 @@ POS + AI agent backend for stationery / general stores (Phitron final project).
 - Step 8: LLM chat + 7 read-only tools done
 - Step 9: Knowledge docs + RAG `search_policy` done
 - Step 10: MCP HTTP + stdio (3 tools, catalog resource, daily prompt) done
+- Step 11: Next.js admin/manager portal done
 
 ## Quick start (local)
 
@@ -96,7 +97,8 @@ knowledge/        # RAG documents (step 9)
 ### Demo seed (Step 7)
 
 ```bash
-uv run python scripts/seed_demo.py   # idempotent
+uv run python scripts/seed_demo.py          # idempotent
+uv run python scripts/seed_demo.py --force  # wipe dummy rows + reseed
 uv run python scripts/test_step7.py  # API + OpenAPI smoke
 ```
 
@@ -135,6 +137,19 @@ uv run python scripts/run_mcp_stdio.py
 uv run python scripts/test_step10.py
 ```
 
+### Portal (Step 11)
+
+Next.js app in `../frontend` — login, dashboard, products, quick sale, sales/receipts, customers (offer opt-in), stock count, AI chat.
+
+```bash
+cd ../frontend
+cp .env.local.example .env.local
+npm install
+npm run dev
+```
+
+Backend CORS allows `http://localhost:3000`. If port 8000 is taken, run API on `8001` and set `NEXT_PUBLIC_API_BASE_URL` accordingly.
+
 ## Next
 
-Step 11 — Next.js portal.
+Step 12 — Docker finalize + Render deploy.
