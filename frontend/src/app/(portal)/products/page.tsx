@@ -7,7 +7,8 @@ import { Alert, PageHeader } from "@/components/ui";
 import type { Product } from "@/lib/types";
 
 export default function ProductsPage() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
+  const bn = lang === "bn";
   const [q, setQ] = useState("");
   const [category, setCategory] = useState("");
   const [categories, setCategories] = useState<string[]>([]);
@@ -31,6 +32,11 @@ export default function ProductsPage() {
     }
   }
 
+  function pickCategory(cat: string) {
+    setCategory(cat);
+    void load(q, onlyLow, cat);
+  }
+
   useEffect(() => {
     void load();
     void api.productCategories().then((r) => setCategories(r.categories)).catch(() => undefined);
@@ -41,48 +47,67 @@ export default function ProductsPage() {
     <div className="space-y-4">
       <PageHeader title={t("products.title")} subtitle={t("products.subtitle")} />
 
-      <form
-        className="panel toolbar p-4"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void load();
-        }}
-      >
-        <label className="field-label min-w-[220px] flex-1">
-          {t("products.nameBarcode")}
-          <input
-            className="field mt-1.5"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder={t("products.placeholder")}
-          />
-        </label>
-        <label className="field-label min-w-[160px]">
-          Category
-          <select
-            className="field mt-1.5"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
+      <div className="panel space-y-3 p-4">
+        <div className="flex flex-wrap gap-1.5">
+          <button
+            type="button"
+            className="seg-btn"
+            data-active={!category}
+            onClick={() => pickCategory("")}
           >
-            <option value="">All</option>
-            {categories.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex items-center gap-2 pb-0.5 text-sm">
-          <input type="checkbox" checked={onlyLow} onChange={(e) => setOnlyLow(e.target.checked)} />
-          {t("products.lowOnly")}
-        </label>
-        <button className="btn btn-primary" type="submit" disabled={loading}>
-          {loading ? t("products.searching") : t("products.search")}
-        </button>
-      </form>
+            {bn ? "সব" : "All"}
+          </button>
+          {categories.map((c) => (
+            <button
+              key={c}
+              type="button"
+              className="seg-btn"
+              data-active={category === c}
+              onClick={() => pickCategory(c)}
+            >
+              {c}
+            </button>
+          ))}
+        </div>
+
+        <form
+          className="toolbar"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void load();
+          }}
+        >
+          <label className="field-label min-w-[220px] flex-1">
+            {t("products.nameBarcode")}
+            <input
+              className="field mt-1.5"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder={t("products.placeholder")}
+            />
+          </label>
+          <label className="flex items-center gap-2 pb-0.5 text-sm">
+            <input
+              type="checkbox"
+              checked={onlyLow}
+              onChange={(e) => {
+                setOnlyLow(e.target.checked);
+                void load(q, e.target.checked, category);
+              }}
+            />
+            {t("products.lowOnly")}
+          </label>
+          <button className="btn btn-primary" type="submit" disabled={loading}>
+            {loading ? t("products.searching") : t("products.search")}
+          </button>
+        </form>
+      </div>
 
       {error ? <Alert>{error}</Alert> : null}
-      <p className="text-sm text-[var(--muted)]">{t("products.count", { n: total })}</p>
+      <p className="text-sm text-[var(--muted)]">
+        {t("products.count", { n: total })}
+        {category ? ` · ${category}` : ""}
+      </p>
 
       <div className="panel overflow-hidden">
         <div className="overflow-x-auto">
@@ -120,6 +145,13 @@ export default function ProductsPage() {
                   );
                 }),
               )}
+              {!loading && items.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-8 text-center text-sm text-[var(--muted)]">
+                    {bn ? "এই ক্যাটাগরিতে পণ্য নেই" : "No products in this category"}
+                  </td>
+                </tr>
+              ) : null}
             </tbody>
           </table>
         </div>

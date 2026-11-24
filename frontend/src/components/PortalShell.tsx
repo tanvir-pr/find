@@ -47,7 +47,7 @@ const GROUPS: { en: string; bn: string; items: NavItem[] }[] = [
       { href: "/insights", en: "Insights", bn: "ইনসাইট" },
       { href: "/logistics", en: "Vans", bn: "ভ্যান" },
       { href: "/ops", en: "SMS / Import", bn: "SMS / ইমপোর্ট" },
-      { href: "/automation", en: "AI Actions", bn: "AI অ্যাকশন" },
+      { href: "/automation", en: "Shop alerts", bn: "দোকান অ্যালার্ট" },
       { href: "/chat", en: "AI helper", bn: "AI সহায়ক" },
     ],
   },

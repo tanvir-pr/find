@@ -131,7 +131,7 @@ const dict = {
 
     // stock
     "stock.title": "Stock count",
-    "stock.subtitle": "Count shelf stock and match it with the system.",
+    "stock.subtitle": "Physically count shelf stock, enter numbers, then save — with “Apply adjustments” the system stock is corrected to match.",
     "stock.apply": "Apply stock adjustments for differences",
     "stock.system": "System",
     "stock.counted": "Counted",
@@ -267,7 +267,7 @@ const dict = {
     "customers.updateFailed": "আপডেট হয়নি",
 
     "stock.title": "স্টক গণনা",
-    "stock.subtitle": "শেলফে গণনা করে সিস্টেম স্টকের সাথে মিলিয়ে নিন।",
+    "stock.subtitle": "শেলফে গুনে সংখ্যা লিখুন, সেভ করুন — অ্যাডজাস্টমেন্ট টিক থাকলে সিস্টেম স্টক ঠিক হয়ে যাবে।",
     "stock.apply": "পার্থক্য থাকলে স্টক অ্যাডজাস্টমেন্ট প্রয়োগ করুন",
     "stock.system": "সিস্টেম",
     "stock.counted": "গণনা",

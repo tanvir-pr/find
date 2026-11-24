@@ -34,7 +34,14 @@ export default function OpsPage() {
           onClick={() =>
             void api
               .dailySms()
-              .then((r) => setMsg(JSON.stringify(r)))
+              .then((r) => {
+                const row = r as { to_phone?: string; body?: string; provider_status?: string };
+                setMsg(
+                  bn
+                    ? `SMS গেছে → ${row.to_phone || "—"} (${row.provider_status || "ok"})`
+                    : `SMS sent → ${row.to_phone || "—"} (${row.provider_status || "ok"})`,
+                );
+              })
               .catch((e) => setError(e.message))
           }
         >

@@ -15,24 +15,24 @@ export default function StockPage() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
-    api
-      .products()
-      .then((data) => {
-        const next: CountRow[] = [];
-        data.items.forEach((p: Product) => {
-          p.variants.forEach((v) => {
-            next.push({
-              variant: v,
-              productName: p.name,
-              system: Number(v.current_stock),
-              counted: String(v.current_stock),
-            });
-          });
+  async function loadRows() {
+    const data = await api.products(undefined, undefined, undefined, 200);
+    const next: CountRow[] = [];
+    data.items.forEach((p: Product) => {
+      p.variants.forEach((v) => {
+        next.push({
+          variant: v,
+          productName: p.name,
+          system: Number(v.current_stock),
+          counted: String(v.current_stock),
         });
-        setRows(next.slice(0, 40));
-      })
-      .catch((err) => setError(err.message || t("common.failed")));
+      });
+    });
+    setRows(next);
+  }
+
+  useEffect(() => {
+    void loadRows().catch((err) => setError(err.message || t("common.failed")));
   }, [t]);
 
   async function submit() {
@@ -54,6 +54,7 @@ export default function StockPage() {
           n: (result as { lines?: unknown[] }).lines?.length ?? rows.length,
         }),
       );
+      if (apply) await loadRows();
     } catch (err) {
       setError(err instanceof Error ? err.message : t("stock.failed"));
     } finally {
