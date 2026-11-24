@@ -46,5 +46,7 @@ class ShiftSummaryResponse(BaseModel):
     bkash_sales: Decimal
     nagad_sales: Decimal
     credit_sales: Decimal
+    points_discount: Decimal = Decimal("0")
+    bill_discount: Decimal = Decimal("0")
     expected_cash: Decimal
     bill_count: int

@@ -8,14 +8,20 @@ from app.core.errors import register_exception_handlers
 from app.mcp.http import McpApiKeyMiddleware, mcp_http_app
 from app.mcp.server import mcp
 from app.modules.auth.router import router as auth_router
+from app.modules.automation.router import router as automation_router
+from app.modules.branches.router import router as branches_router
 from app.modules.chat.router import router as chat_router
+from app.modules.commissions.router import router as commissions_router
 from app.modules.customers.router import router as customers_router
+from app.modules.logistics.router import router as logistics_router
+from app.modules.ops.router import router as ops_router
 from app.modules.products.router import router as products_router
 from app.modules.reports.router import router as reports_router
 from app.modules.sales.router import returns_router, router as sales_router
 from app.modules.shifts.router import router as shifts_router
 from app.modules.stock.router import purchases_router, stock_router
 from app.modules.suppliers.router import router as suppliers_router
+from app.modules.sync.router import router as sync_router
 
 
 @asynccontextmanager
@@ -58,6 +64,12 @@ app.include_router(returns_router)
 app.include_router(shifts_router)
 app.include_router(reports_router)
 app.include_router(chat_router)
+app.include_router(automation_router)
+app.include_router(ops_router)
+app.include_router(logistics_router)
+app.include_router(commissions_router)
+app.include_router(sync_router)
+app.include_router(branches_router)
 app.mount("/mcp", mcp_http_app)
 
 

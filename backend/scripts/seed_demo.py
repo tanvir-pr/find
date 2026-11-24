@@ -427,23 +427,29 @@ async def main() -> None:
         karim = Customer(
             name="Karim Dealer",
             phone="01910000001",
+            email="karim@example.com",
             area="Mirpur",
             credit_limit=Decimal("50000.00"),
             offer_opt_in=True,
+            loyalty_points=120,
         )
         rahima = Customer(
             name="Rahima Retail",
             phone="01910000002",
+            email="rahima@example.com",
             area="Dhanmondi",
             credit_limit=Decimal("5000.00"),
             offer_opt_in=False,
+            loyalty_points=40,
         )
         walkin = Customer(
             name="Walk-in Banani",
             phone="01910000003",
+            email="walkin.banani@example.com",
             area="Banani",
             credit_limit=Decimal("0"),
             offer_opt_in=True,
+            loyalty_points=0,
         )
         session.add_all([karim, rahima, walkin])
         await session.flush()

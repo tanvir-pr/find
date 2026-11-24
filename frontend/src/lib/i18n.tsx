@@ -28,21 +28,20 @@ const dict = {
     "nav.checkingSession": "Checking session…",
 
     // login
-    "login.badge": "Live shop assistant",
-    "login.tagline":
-      "Admin & manager portal — sales pulse, stock alerts, customers, receipts, and the AI shop helper in one place.",
+    "login.badge": "Shop portal",
+    "login.tagline": "Admin and manager access for sales, stock, and shop help.",
     "login.title": "Sign in",
-    "login.subtitle": "Use admin or manager accounts.",
+    "login.subtitle": "Admin or manager account.",
     "login.email": "Email",
     "login.password": "Password",
-    "login.submit": "Enter portal",
+    "login.submit": "Sign in",
     "login.submitting": "Signing in…",
-    "login.hint": "Login: admin@dokan.example / Admin123!",
+    "login.hint": "Demo: admin@dokan.example / Admin123!",
     "login.failed": "Login failed",
 
     // dashboard
-    "dash.title": "Today's pulse",
-    "dash.subtitle": "Today's sales, low stock and near-expiry items.",
+    "dash.title": "Dashboard",
+    "dash.subtitle": "Today’s sales, low stock, and near-expiry items.",
     "dash.todaySales": "Today sales",
     "dash.todayProfit": "Today profit (est.)",
     "dash.billsToday": "Bills today",
@@ -96,6 +95,9 @@ const dict = {
     "pos.saleSaved": "Sale saved · bill {bill} · {total}",
     "pos.searchFailed": "Search failed",
     "pos.saleFailed": "Sale failed",
+    "pos.categories": "Categories",
+    "pos.invoiceContact": "Invoice contact",
+    "pos.printInvoice": "Print invoice",
 
     // sales
     "sales.title": "Sales & receipts",
@@ -168,19 +170,18 @@ const dict = {
     "nav.signOut": "সাইন আউট",
     "nav.checkingSession": "সেশন চেক হচ্ছে…",
 
-    "login.badge": "লাইভ শপ অ্যাসিস্ট্যান্ট",
-    "login.tagline":
-      "অ্যাডমিন ও ম্যানেজার পোর্টাল — বিক্রি, স্টক অ্যালার্ট, কাস্টমার, রসিদ এবং AI শপ হেল্পার এক জায়গায়।",
+    "login.badge": "শপ পোর্টাল",
+    "login.tagline": "বিক্রি, স্টক ও দোকানের কাজের জন্য অ্যাডমিন/ম্যানেজার লগইন।",
     "login.title": "সাইন ইন",
-    "login.subtitle": "অ্যাডমিন বা ম্যানেজার অ্যাকাউন্ট ব্যবহার করুন।",
+    "login.subtitle": "অ্যাডমিন বা ম্যানেজার অ্যাকাউন্ট।",
     "login.email": "ইমেইল",
     "login.password": "পাসওয়ার্ড",
-    "login.submit": "পোর্টালে ঢুকুন",
+    "login.submit": "সাইন ইন",
     "login.submitting": "সাইন ইন হচ্ছে…",
-    "login.hint": "লগইন: admin@dokan.example / Admin123!",
+    "login.hint": "ডেমো: admin@dokan.example / Admin123!",
     "login.failed": "লগইন ব্যর্থ",
 
-    "dash.title": "আজকের অবস্থা",
+    "dash.title": "ড্যাশবোর্ড",
     "dash.subtitle": "আজকের বিক্রি, লো স্টক ও মেয়াদ শেষের আইটেম।",
     "dash.todaySales": "আজকের বিক্রি",
     "dash.todayProfit": "আজকের লাভ (আনুমানিক)",
@@ -233,6 +234,9 @@ const dict = {
     "pos.saleSaved": "বিক্রি হয়েছে · বিল {bill} · {total}",
     "pos.searchFailed": "খোঁজা যায়নি",
     "pos.saleFailed": "বিক্রি হয়নি",
+    "pos.categories": "ক্যাটাগরি",
+    "pos.invoiceContact": "ইনভয়েস যোগাযোগ",
+    "pos.printInvoice": "ইনভয়েস প্রিন্ট",
 
     "sales.title": "বিক্রি ও রসিদ",
     "sales.subtitle": "বিল খুঁজে রসিদ আবার প্রিন্ট করুন।",
@@ -350,32 +354,28 @@ export function LanguageSwitch({
 }) {
   const { lang, setLang } = useI18n();
   const shell =
-    tone === "dark"
-      ? "border-white/25 bg-white/10"
-      : "border-[var(--line)] bg-white/70";
+    tone === "dark" ? "border-white/20 bg-transparent" : "border-[var(--line-strong)] bg-[var(--surface)]";
   const active =
     tone === "dark" ? "bg-white text-[var(--ink)]" : "bg-[var(--ink)] text-white";
   const idle =
-    tone === "dark"
-      ? "text-white/75 hover:bg-white/10"
-      : "text-[var(--ink)]/70 hover:bg-black/5";
+    tone === "dark" ? "text-white/70 hover:bg-white/10" : "text-[var(--muted)] hover:bg-[var(--surface-2)]";
 
   return (
     <div
-      className={`inline-flex rounded-xl border p-0.5 text-xs font-semibold ${shell} ${className}`}
+      className={`inline-flex border text-xs font-medium ${shell} ${className}`}
       role="group"
       aria-label="Language"
     >
       <button
         type="button"
-        className={`rounded-lg px-2.5 py-1.5 transition ${lang === "en" ? active : idle}`}
+        className={`px-2 py-1 ${lang === "en" ? active : idle}`}
         onClick={() => setLang("en")}
       >
         EN
       </button>
       <button
         type="button"
-        className={`rounded-lg px-2.5 py-1.5 transition ${lang === "bn" ? active : idle}`}
+        className={`px-2 py-1 ${lang === "bn" ? active : idle}`}
         onClick={() => setLang("bn")}
       >
         বাং

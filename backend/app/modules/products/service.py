@@ -32,10 +32,43 @@ async def _product_response(session: AsyncSession, product: Product) -> ProductR
     return base.model_copy(update={"variants": variants})
 
 
+DEFAULT_CATEGORY = "General"
+
+
+async def ensure_product_categories(session: AsyncSession) -> int:
+    """Backfill missing categories so every product is browsable in quick-sell."""
+    rows = (
+        await session.scalars(
+            select(Product).where(
+                or_(Product.category.is_(None), Product.category == "", Product.category == " ")
+            )
+        )
+    ).all()
+    for product in rows:
+        product.category = DEFAULT_CATEGORY
+    if rows:
+        await session.commit()
+    return len(rows)
+
+
+async def list_categories(session: AsyncSession) -> list[str]:
+    await ensure_product_categories(session)
+    rows = (
+        await session.scalars(
+            select(Product.category)
+            .where(Product.is_active.is_(True), Product.category.is_not(None))
+            .distinct()
+            .order_by(Product.category)
+        )
+    ).all()
+    return [c for c in rows if c]
+
+
 async def create_product(session: AsyncSession, data: ProductCreate) -> ProductResponse:
+    category = (data.category or DEFAULT_CATEGORY).strip() or DEFAULT_CATEGORY
     product = Product(
         name=data.name.strip(),
-        category=data.category,
+        category=category,
         unit=data.unit,
         tracks_expiry=data.tracks_expiry,
         description=data.description,

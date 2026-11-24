@@ -1,5 +1,6 @@
+import json
 from datetime import date
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
@@ -9,6 +10,7 @@ from app.db.session import get_db
 from app.models.enums import UserRole
 from app.models.user import User
 from app.modules.auth.deps import get_current_user, require_roles
+from app.modules.chat import tool_executors
 from app.modules.reports import service
 from app.modules.reports.schemas import ExpiringItem, LowStockItem, SalesSummaryResponse
 
@@ -41,3 +43,25 @@ async def expiring(
     within_days: int = Query(30, ge=1, le=365),
 ) -> list[ExpiringItem]:
     return await service.expiring_report(session, within_days=within_days)
+
+
+@router.get("/reorder")
+async def reorder(
+    session: Annotated[AsyncSession, Depends(get_db)],
+    user: Annotated[User, Depends(require_roles(UserRole.admin, UserRole.manager))],
+    cover_days: int = Query(14, ge=1, le=90),
+) -> dict[str, Any]:
+    raw = await tool_executors.reorder_suggestion(
+        session, user, {"cover_days": cover_days}
+    )
+    return json.loads(raw)
+
+
+@router.get("/seasonal")
+async def seasonal(
+    session: Annotated[AsyncSession, Depends(get_db)],
+    user: Annotated[User, Depends(require_roles(UserRole.admin, UserRole.manager))],
+    season: str = Query("winter_start"),
+) -> dict[str, Any]:
+    raw = await tool_executors.seasonal_top_products(session, user, {"season": season})
+    return json.loads(raw)

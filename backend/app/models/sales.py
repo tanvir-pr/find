@@ -1,7 +1,7 @@
 import uuid
 from decimal import Decimal
 
-from sqlalchemy import Boolean, Enum, ForeignKey, Numeric, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, Enum, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -36,7 +36,11 @@ class Sale(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     device_id: Mapped[str | None] = mapped_column(String(80))
     subtotal: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    # Bill / promo discount only — NOT loyalty points
     discount: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0, nullable=False)
+    # Loyalty: 1 point = ৳1; tracked separately so cash/online still reconcile
+    points_discount: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0, nullable=False)
+    points_redeemed: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     total: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
 
     customer = relationship("Customer", back_populates="sales")

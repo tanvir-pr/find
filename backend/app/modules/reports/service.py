@@ -43,6 +43,12 @@ async def sales_summary(
         )
         or 0
     )
+    total_points_discount = Decimal(
+        await session.scalar(
+            select(func.coalesce(func.sum(Sale.points_discount), 0)).where(*sale_filter)
+        )
+        or 0
+    )
     bill_count = int(
         await session.scalar(select(func.count()).select_from(Sale).where(*sale_filter)) or 0
     )
@@ -80,7 +86,15 @@ async def sales_summary(
 
     staff_rows = (
         await session.execute(
-            select(Sale.user_id, User.name, func.count(Sale.id), func.coalesce(func.sum(Sale.total), 0))
+            select(
+                Sale.user_id,
+                User.name,
+                func.count(Sale.id),
+                func.coalesce(func.sum(Sale.total), 0),
+                func.coalesce(func.sum(Sale.points_discount), 0),
+                func.coalesce(func.sum(Sale.points_redeemed), 0),
+                func.coalesce(func.sum(Sale.discount), 0),
+            )
             .join(User, User.id == Sale.user_id)
             .where(*sale_filter)
             .group_by(Sale.user_id, User.name)
@@ -92,6 +106,9 @@ async def sales_summary(
             "name": row[1],
             "bill_count": int(row[2]),
             "total": str(row[3]),
+            "points_discount": str(row[4]),
+            "points_redeemed": int(row[5] or 0),
+            "bill_discount": str(row[6]),
         }
         for row in staff_rows
     ]
@@ -101,6 +118,7 @@ async def sales_summary(
         to_date=to_date,
         total_sales=total_sales,
         total_discount=total_discount,
+        total_points_discount=total_points_discount,
         bill_count=bill_count,
         cash=await pay_sum(PaymentMethod.cash),
         bkash=await pay_sum(PaymentMethod.bkash),

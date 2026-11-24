@@ -3,22 +3,25 @@
 import { useEffect, useState } from "react";
 import { api, money } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { Alert, PageHeader } from "@/components/ui";
 import type { Product } from "@/lib/types";
 
 export default function ProductsPage() {
   const { t } = useI18n();
   const [q, setQ] = useState("");
+  const [category, setCategory] = useState("");
+  const [categories, setCategories] = useState<string[]>([]);
   const [onlyLow, setOnlyLow] = useState(false);
   const [items, setItems] = useState<Product[]>([]);
   const [total, setTotal] = useState(0);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function load(search = q, low = onlyLow) {
+  async function load(search = q, low = onlyLow, cat = category) {
     setLoading(true);
     setError("");
     try {
-      const data = await api.products(search || undefined, low || undefined);
+      const data = await api.products(search || undefined, low || undefined, cat || undefined, 200);
       setItems(data.items);
       setTotal(data.total);
     } catch (err) {
@@ -30,33 +33,46 @@ export default function ProductsPage() {
 
   useEffect(() => {
     void load();
+    void api.productCategories().then((r) => setCategories(r.categories)).catch(() => undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
-    <div className="fade-up space-y-5">
-      <header>
-        <h1 className="text-3xl">{t("products.title")}</h1>
-        <p className="mt-1 text-sm opacity-70">{t("products.subtitle")}</p>
-      </header>
+    <div className="space-y-4">
+      <PageHeader title={t("products.title")} subtitle={t("products.subtitle")} />
 
       <form
-        className="panel flex flex-col gap-3 p-4 sm:flex-row sm:items-end"
+        className="panel toolbar p-4"
         onSubmit={(e) => {
           e.preventDefault();
           void load();
         }}
       >
-        <label className="flex-1 text-sm font-medium">
+        <label className="field-label min-w-[220px] flex-1">
           {t("products.nameBarcode")}
           <input
-            className="field mt-2"
+            className="field mt-1.5"
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder={t("products.placeholder")}
           />
         </label>
-        <label className="flex items-center gap-2 pb-2 text-sm">
+        <label className="field-label min-w-[160px]">
+          Category
+          <select
+            className="field mt-1.5"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+          >
+            <option value="">All</option>
+            {categories.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="flex items-center gap-2 pb-0.5 text-sm">
           <input type="checkbox" checked={onlyLow} onChange={(e) => setOnlyLow(e.target.checked)} />
           {t("products.lowOnly")}
         </label>
@@ -65,49 +81,48 @@ export default function ProductsPage() {
         </button>
       </form>
 
-      {error ? <p className="text-[var(--coral)]">{error}</p> : null}
-      <p className="text-sm opacity-70">{t("products.count", { n: total })}</p>
+      {error ? <Alert>{error}</Alert> : null}
+      <p className="text-sm text-[var(--muted)]">{t("products.count", { n: total })}</p>
 
-      <div className="panel overflow-x-auto p-2">
-        <table className="table">
-          <thead>
-            <tr>
-              <th>{t("products.product")}</th>
-              <th>{t("products.variant")}</th>
-              <th>{t("products.barcode")}</th>
-              <th>{t("products.stock")}</th>
-              <th>{t("products.retail")}</th>
-              <th>{t("products.dealer")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.flatMap((p) =>
-              p.variants.map((v) => (
-                <tr key={v.id}>
-                  <td>
-                    {p.name}
-                    <div className="text-xs opacity-60">{p.category}</div>
-                  </td>
-                  <td>{v.name}</td>
-                  <td>{v.barcode || "—"}</td>
-                  <td>
-                    <strong
-                      className={
-                        Number(v.current_stock) <= Number(v.low_stock_threshold)
-                          ? "text-[var(--coral)]"
-                          : ""
-                      }
-                    >
-                      {v.current_stock}
-                    </strong>
-                  </td>
-                  <td>{money(v.retail_price)}</td>
-                  <td>{money(v.dealer_price)}</td>
-                </tr>
-              )),
-            )}
-          </tbody>
-        </table>
+      <div className="panel overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>{t("products.product")}</th>
+                <th>{t("products.variant")}</th>
+                <th>{t("products.barcode")}</th>
+                <th>{t("products.stock")}</th>
+                <th>{t("products.retail")}</th>
+                <th>{t("products.dealer")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.flatMap((p) =>
+                p.variants.map((v) => {
+                  const low = Number(v.current_stock) <= Number(v.low_stock_threshold);
+                  return (
+                    <tr key={v.id}>
+                      <td>
+                        <span className="font-medium">{p.name}</span>
+                        <div className="text-xs text-[var(--muted)]">{p.category}</div>
+                      </td>
+                      <td>{v.name}</td>
+                      <td className="font-mono text-xs">{v.barcode || "—"}</td>
+                      <td>
+                        <strong className={`tabular-nums ${low ? "text-[var(--danger)]" : ""}`}>
+                          {v.current_stock}
+                        </strong>
+                      </td>
+                      <td className="tabular-nums">{money(v.retail_price)}</td>
+                      <td className="tabular-nums">{money(v.dealer_price)}</td>
+                    </tr>
+                  );
+                }),
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

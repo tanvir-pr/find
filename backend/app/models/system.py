@@ -50,6 +50,21 @@ class SmsLog(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     meta: Mapped[dict | None] = mapped_column(JSONB)
 
 
+class EmailLog(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "email_logs"
+
+    to_email: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    subject: Mapped[str] = mapped_column(String(200), nullable=False)
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    provider_status: Mapped[str | None] = mapped_column(String(40))
+    provider_ref: Mapped[str | None] = mapped_column(String(120))
+    customer_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("customers.id", ondelete="SET NULL"),
+    )
+    meta: Mapped[dict | None] = mapped_column(JSONB)
+
+
 class SyncLog(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "sync_logs"
 

@@ -1,5 +1,6 @@
 """Import all models so Alembic and metadata see every table."""
 
+from app.models.automation import AgentAction, AutomationSettings
 from app.models.branch import Branch
 from app.models.commission import CommissionEntry, CommissionRule
 from app.models.customer import Customer
@@ -9,10 +10,12 @@ from app.models.sales import Payment, Return, Sale, SaleItem
 from app.models.shift import CashClosing, Shift
 from app.models.stock import StockCount, StockCountLine, StockMovement
 from app.models.supplier import PurchaseInvoice, Supplier
-from app.models.system import KnowledgeChunk, ReceiptLog, SmsLog, SyncLog
+from app.models.system import EmailLog, KnowledgeChunk, ReceiptLog, SmsLog, SyncLog
 from app.models.user import User
 
 __all__ = [
+    "AgentAction",
+    "AutomationSettings",
     "Batch",
     "Branch",
     "CashClosing",
@@ -20,6 +23,7 @@ __all__ = [
     "CommissionRule",
     "Customer",
     "Delivery",
+    "EmailLog",
     "KnowledgeChunk",
     "Payment",
     "Product",

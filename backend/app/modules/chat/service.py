@@ -41,7 +41,7 @@ async def _run_loop(
                     ToolInvocation(
                         name=call.name,
                         arguments=call.arguments,
-                        result_preview=result[:500],
+                        result_preview=result[:8000],
                     )
                 )
                 messages.append(
@@ -63,9 +63,12 @@ async def _run_loop(
         if tools_used:
             mock_final = await MockLLMClient().chat(messages, tools=None)
             reply = (mock_final.message.content or "").strip()
-            if not reply:
-                bits = [f"{t.name}: {t.result_preview}" for t in tools_used[-3:]]
-                reply = "টুল থেকে পাওয়া তথ্য:\n" + "\n".join(bits)
+            if not reply or "{" in reply:
+                names = ", ".join(t.name.replace("_", " ") for t in tools_used[-3:])
+                reply = (
+                    "নিচের কার্ডে দোকানের তথ্য সহজ করে দেখানো হয়েছে"
+                    + (f" ({names})." if names else ".")
+                )
             return ChatResponse(reply=reply, tools_used=tools_used, provider=provider)
         raise
 

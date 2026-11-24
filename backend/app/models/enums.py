@@ -51,3 +51,25 @@ class SyncStatus(str, enum.Enum):
 class CommissionBasis(str, enum.Enum):
     percent_of_sale = "percent_of_sale"
     fixed_per_sale = "fixed_per_sale"
+
+
+class AgentActionKind(str, enum.Enum):
+    due_reminders = "due_reminders"
+    daily_summary_sms = "daily_summary_sms"
+    low_stock_alert = "low_stock_alert"
+    expiring_alert = "expiring_alert"
+    reorder_draft = "reorder_draft"
+
+
+class AgentActionStatus(str, enum.Enum):
+    pending = "pending"
+    approved = "approved"
+    rejected = "rejected"
+    executed = "executed"
+    failed = "failed"
+    skipped = "skipped"
+
+
+class AgentActionMode(str, enum.Enum):
+    auto = "auto"
+    approval = "approval"

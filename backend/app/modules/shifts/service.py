@@ -71,6 +71,21 @@ async def shift_summary(session: AsyncSession, shift_id: UUID) -> ShiftSummaryRe
         )
         or 0
     )
+    points_discount = Decimal(
+        await session.scalar(
+            select(func.coalesce(func.sum(Sale.points_discount), 0)).where(
+                Sale.shift_id == shift_id
+            )
+        )
+        or 0
+    )
+    bill_discount = Decimal(
+        await session.scalar(
+            select(func.coalesce(func.sum(Sale.discount), 0)).where(Sale.shift_id == shift_id)
+        )
+        or 0
+    )
+    # Expected drawer = opening + cash payments only (points never enter the till)
     expected = shift.opening_cash + cash
     return ShiftSummaryResponse(
         shift_id=shift.id,
@@ -79,6 +94,8 @@ async def shift_summary(session: AsyncSession, shift_id: UUID) -> ShiftSummaryRe
         bkash_sales=bkash,
         nagad_sales=nagad,
         credit_sales=credit,
+        points_discount=points_discount,
+        bill_discount=bill_discount,
         expected_cash=expected,
         bill_count=bill_count,
     )

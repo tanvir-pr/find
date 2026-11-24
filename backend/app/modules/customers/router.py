@@ -39,6 +39,16 @@ async def list_customers(
     return await service.list_customers(session, area=area)
 
 
+@router.get("/lookup", response_model=CustomerResponse | None)
+async def lookup_customer(
+    session: Annotated[AsyncSession, Depends(get_db)],
+    _: Annotated[User, Depends(get_current_user)],
+    phone: str | None = Query(None),
+    email: str | None = Query(None),
+) -> CustomerResponse | None:
+    return await service.lookup_customer(session, phone=phone, email=email)
+
+
 @router.post(
     "/due-reminders/run",
     response_model=list[DueReminderResponse],

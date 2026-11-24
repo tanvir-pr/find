@@ -38,7 +38,7 @@ class VariantResponse(BaseModel):
 
 class ProductCreate(BaseModel):
     name: str = Field(min_length=1, max_length=200)
-    category: str | None = Field(default=None, max_length=100)
+    category: str = Field(default="General", min_length=1, max_length=100)
     unit: str = Field(default="pcs", max_length=40)
     tracks_expiry: bool = False
     description: str | None = None
@@ -73,3 +73,7 @@ class ProductListResponse(BaseModel):
     total: int
     page: int
     page_size: int
+
+
+class CategoryListResponse(BaseModel):
+    categories: list[str]

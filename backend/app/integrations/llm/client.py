@@ -82,7 +82,7 @@ class OpenAICompatibleClient:
         api_key: str | None = None,
         base_url: str | None = None,
         model: str | None = None,
-        timeout: float = 60.0,
+        timeout: float = 25.0,
     ) -> None:
         self.api_key = (api_key if api_key is not None else settings.LLM_API_KEY).strip()
         self.base_url = (base_url if base_url is not None else settings.LLM_BASE_URL).rstrip("/")
@@ -147,15 +147,49 @@ class OpenAICompatibleClient:
         )
 
 
+def _mock_summarize_tools(tool_bits: list[ChatMessage]) -> str:
+    """Turn tool JSON into a short shopkeeper-friendly line (UI also renders cards)."""
+    for m in tool_bits[-3:]:
+        raw = (m.content or "").strip()
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError:
+            continue
+        name = m.name or ""
+        if name == "search_policy" and isinstance(data, dict):
+            hits = data.get("hits") or []
+            if not hits:
+                return "এই বিষয়ে দোকানের ডকুমেন্টে স্পষ্ট তথ্য পাইনি। মালিকের সাথে কথা বলুন।"
+            blob = " ".join(str(h.get("text") or "") for h in hits if isinstance(h, dict))
+            if re.search(r"ডুপ্লিকেট|duplicate", blob, re.I):
+                return (
+                    "ডুপ্লিকেট ভার্সনের পণ্য সাধারণত ফেরত নেওয়া হয় না। "
+                    "শুধু মালিকের অনুমতিতে সমমূল্যে এক্সচেঞ্জ করা যায়।"
+                )
+            return "দোকানের নিয়ম অনুযায়ী নিচের তথ্য প্রযোজ্য।"
+        if name == "sales_summary" and isinstance(data, dict):
+            return f"এই সময়ে মোট বিক্রি ৳{data.get('total_sales', '0')} (বিল {data.get('bill_count', 0)}টি)।"
+        if name == "check_stock" and isinstance(data, dict):
+            n = data.get("count") or len(data.get("matches") or data.get("items") or [])
+            return f"স্টক খুঁজে {n}টি মিল পাওয়া গেছে।"
+        if name == "low_stock_list" and isinstance(data, dict):
+            return f"লো স্টক আইটেম: {data.get('count', 0)}টি।"
+        if name == "customer_due" and isinstance(data, dict):
+            return f"বাকি সংক্রান্ত ফলাফল: {data.get('count', len(data.get('customers') or []))}টি।"
+    return "নিচের কার্ডে তথ্য দেখানো হলো।"
+
+
 class MockLLMClient:
     """Keyword → single tool call, then summarize tool JSON. No API key needed."""
 
     RULES: list[tuple[re.Pattern[str], str, dict[str, Any]]] = [
         (
             re.compile(
-                r"ফেরত|রিটার্ন|return|পলিসি|policy|ক্যাশ কম|ক্যাশ ক্লোজ|cash closing|"
+                r"ফেরত|রিটার্ন|return|take\s*back|exchange|এক্সচেঞ্জ|"
+                r"পলিসি|policy|নিয়ম|ক্যাশ কম|ক্যাশ ক্লোজ|cash closing|"
                 r"\bTIN\b|\bBIN\b|ট্যাক্স|tax|নতুন কাস্টমারকে|ক্রেডিট লিমিট|"
-                r"অরিজিনাল|ডুপ্লিকেট.*ফেরত|কোন খাতা|কোন কালি",
+                r"ডুপ্লিকেট|duplicate|অরিজিনাল|original|"
+                r"কোন খাতা|কোন কালি",
                 re.I,
             ),
             "search_policy",
@@ -163,11 +197,29 @@ class MockLLMClient:
         ),
         (re.compile(r"বাকি|due|credit|করীম|karim|rahima", re.I), "customer_due", {}),
         (re.compile(r"মৌসুম|season|শীত|গরম|winter|summer|জানুয়ার|january", re.I), "seasonal_top_products", {"season": "winter_start"}),
-        (re.compile(r"অর্ডার|reorder|কিনতে|order", re.I), "reorder_suggestion", {"cover_days": 14}),
-        (re.compile(r"মেয়াদ|expir|ডিসকাউন্ট", re.I), "expiring_items", {"within_days": 30}),
-        (re.compile(r"লো.?স্টক|low.?stock|শেষ হয়ে|ফুরিয়ে|order দিতে", re.I), "low_stock_list", {}),
-        (re.compile(r"বিক্রি|sales|লাভ|profit|আজ|সারাংশ|summary", re.I), "sales_summary", {"period": "month"}),
-        (re.compile(r"স্টক|stock|কয়টা|কতটা|আছে|কলম|ব্যাগ|bag|pen|glue|আঠা", re.I), "check_stock", {"query": "School Bag"}),
+        (re.compile(r"অর্ডার|reorder|কিনতে|\border\b", re.I), "reorder_suggestion", {"cover_days": 14}),
+        (re.compile(r"মেয়াদ|expir", re.I), "expiring_items", {"within_days": 30}),
+        (re.compile(r"লো.?স্টক|low.?stock|শেষ হয়ে|ফুরিয়ে|running low", re.I), "low_stock_list", {}),
+        (
+            re.compile(
+                r"বিক্রি|বিক্রয়|sales?|sold|sell|লাভ|profit|সারাংশ|summary|"
+                r"আজ(?:কে)?|ajke|aajke|\baaj\b|today|total\s+sell",
+                re.I,
+            ),
+            "sales_summary",
+            {"period": "today"},
+        ),
+        # Stock only when clearly asking quantity/availability (not return/policy)
+        (
+            re.compile(
+                r"(স্টক|stock|কয়টা|কতটা|কত\s*আছে|how many|available)|"
+                r"((কলম|ব্যাগ|bag|pen|glue|আঠা).*(আছে|কত|stock))|"
+                r"((আছে|কত|stock).*(কলম|ব্যাগ|bag|pen|glue|আঠা))",
+                re.I,
+            ),
+            "check_stock",
+            {"query": "School Bag"},
+        ),
     ]
 
     async def chat(
@@ -178,13 +230,10 @@ class MockLLMClient:
         tool_choice: str | dict[str, Any] = "auto",
     ) -> LLMResponse:
         _ = tools, tool_choice
-        # If last message is tool result(s), produce a short answer
+        # If last message is tool result(s), produce a short human answer
         if messages and messages[-1].role == "tool":
             tool_bits = [m for m in messages if m.role == "tool"]
-            parts = []
-            for m in tool_bits[-3:]:
-                parts.append(f"{m.name}: {m.content}")
-            text = "টুল থেকে পাওয়া তথ্য:\n" + "\n".join(parts)
+            text = _mock_summarize_tools(tool_bits)
             return LLMResponse(
                 message=ChatMessage(role="assistant", content=text),
                 finish_reason="stop",
@@ -214,6 +263,14 @@ class MockLLMClient:
                         call_args["season"] = "summer_start"
                     elif re.search(r"জানুয়ার|january|শীত", user_text, re.I):
                         call_args["season"] = "winter_start"
+                if name == "sales_summary":
+                    if re.search(r"মাস|month", user_text, re.I):
+                        call_args["period"] = "month"
+                    elif re.search(r"সপ্তাহ|week", user_text, re.I):
+                        call_args["period"] = "week"
+                    else:
+                        # আজ / ajke / today / sell → today by default
+                        call_args["period"] = "today"
                 return LLMResponse(
                     message=ChatMessage(
                         role="assistant",

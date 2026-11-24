@@ -10,6 +10,7 @@ from app.models.user import User
 from app.modules.auth.deps import get_current_user, require_roles
 from app.modules.products import service
 from app.modules.products.schemas import (
+    CategoryListResponse,
     ProductCreate,
     ProductListResponse,
     ProductResponse,
@@ -39,11 +40,20 @@ async def list_products(
     category: str | None = None,
     low_stock: bool | None = None,
     page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
+    page_size: int = Query(20, ge=1, le=200),
 ) -> ProductListResponse:
     return await service.list_products(
         session, q=q, category=category, low_stock=low_stock, page=page, page_size=page_size
     )
+
+
+@router.get("/meta/categories", response_model=CategoryListResponse)
+async def product_categories(
+    session: Annotated[AsyncSession, Depends(get_db)],
+    _: Annotated[User, Depends(get_current_user)],
+) -> CategoryListResponse:
+    cats = await service.list_categories(session)
+    return CategoryListResponse(categories=cats)
 
 
 @router.get("/{product_id}", response_model=ProductResponse)

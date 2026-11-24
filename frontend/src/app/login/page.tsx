@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { LanguageSwitch, useI18n } from "@/lib/i18n";
+import { ThemeSwitch } from "@/lib/theme";
+import { Alert } from "@/components/ui";
 
 export default function LoginPage() {
   const { user, loading, login } = useAuth();
@@ -33,41 +35,26 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="relative min-h-screen overflow-hidden">
-      <div
-        className="absolute inset-0 opacity-40"
-        style={{
-          backgroundImage:
-            "linear-gradient(rgba(11,31,42,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(11,31,42,0.04) 1px, transparent 1px)",
-          backgroundSize: "28px 28px",
-        }}
-      />
-      <div className="absolute right-4 top-4 z-10 md:right-8 md:top-8">
+    <main className="min-h-screen bg-[var(--canvas)]">
+      <div className="absolute right-4 top-4 flex items-center gap-2 md:right-6 md:top-6">
+        <ThemeSwitch />
         <LanguageSwitch />
       </div>
-      <div className="relative mx-auto flex min-h-screen max-w-6xl flex-col justify-center gap-10 px-5 py-12 md:flex-row md:items-center md:gap-16">
-        <section className="fade-up max-w-xl flex-1">
-          <p className="mb-3 inline-flex items-center gap-2 text-sm font-semibold tracking-wide text-[var(--teal)]">
-            <span className="pulse-dot" /> {t("login.badge")}
-          </p>
-          <h1 className="brand text-5xl leading-tight md:text-6xl">Dokan Assistant</h1>
-          <p className="mt-4 max-w-md text-base leading-relaxed text-[var(--ink-soft)]/80">
-            {t("login.tagline")}
-          </p>
-        </section>
 
-        <form
-          onSubmit={onSubmit}
-          className="panel fade-up w-full max-w-md flex-1 p-7 md:p-8"
-          style={{ animationDelay: "0.08s" }}
-        >
-          <h2 className="text-2xl">{t("login.title")}</h2>
-          <p className="mt-1 text-sm opacity-70">{t("login.subtitle")}</p>
+      <div className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-5 py-10">
+        <div className="mb-8">
+          <p className="brand text-2xl">Dokan</p>
+          <p className="mt-1 text-sm text-[var(--muted)]">{t("login.tagline")}</p>
+        </div>
 
-          <label className="mt-6 block text-sm font-medium">
+        <form onSubmit={onSubmit} className="panel p-6">
+          <h1 className="text-lg font-semibold">{t("login.title")}</h1>
+          <p className="mt-1 text-sm text-[var(--muted)]">{t("login.subtitle")}</p>
+
+          <label className="field-label mt-5">
             {t("login.email")}
             <input
-              className="field mt-2"
+              className="field mt-1.5"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -76,10 +63,10 @@ export default function LoginPage() {
             />
           </label>
 
-          <label className="mt-4 block text-sm font-medium">
+          <label className="field-label mt-3">
             {t("login.password")}
             <input
-              className="field mt-2"
+              className="field mt-1.5"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -89,16 +76,16 @@ export default function LoginPage() {
           </label>
 
           {error ? (
-            <p className="mt-4 rounded-xl bg-[rgba(196,92,62,0.12)] px-3 py-2 text-sm text-[var(--coral)]">
-              {error}
-            </p>
+            <div className="mt-3">
+              <Alert>{error}</Alert>
+            </div>
           ) : null}
 
-          <button className="btn btn-primary mt-6 w-full" type="submit" disabled={busy}>
+          <button className="btn btn-primary mt-5 w-full" type="submit" disabled={busy}>
             {busy ? t("login.submitting") : t("login.submit")}
           </button>
 
-          <p className="mt-4 text-xs leading-relaxed opacity-60">{t("login.hint")}</p>
+          <p className="mt-3 text-xs text-[var(--muted)]">{t("login.hint")}</p>
         </form>
       </div>
     </main>

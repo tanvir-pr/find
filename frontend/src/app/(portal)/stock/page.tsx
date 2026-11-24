@@ -62,10 +62,10 @@ export default function StockPage() {
   }
 
   return (
-    <div className="fade-up space-y-5">
+    <div className="space-y-5">
       <header>
-        <h1 className="text-3xl">{t("stock.title")}</h1>
-        <p className="mt-1 text-sm opacity-70">{t("stock.subtitle")}</p>
+        <h1 className="page-title">{t("stock.title")}</h1>
+        <p className="page-sub">{t("stock.subtitle")}</p>
       </header>
 
       <label className="flex items-center gap-2 text-sm">

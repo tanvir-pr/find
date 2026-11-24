@@ -29,15 +29,31 @@ class SaleCreate(BaseModel):
     shift_id: UUID | None = None
     branch_id: UUID | None = None
     device_id: str | None = None
+    # Contact lookup / invoice — phone or email finds the same customer
+    invoice_phone: str | None = Field(default=None, max_length=30)
+    invoice_email: str | None = Field(default=None, max_length=255)
+    customer_name: str | None = Field(default=None, max_length=160)
+    points_to_redeem: int = Field(default=0, ge=0)
 
     @model_validator(mode="after")
     def credit_needs_customer(self) -> "SaleCreate":
-        if any(p.method == PaymentMethod.credit for p in self.payments) and self.customer_id is None:
-            raise ValueError("customer_id required for credit sales")
+        credit = any(p.method == PaymentMethod.credit for p in self.payments)
+        if credit and self.customer_id is None and not (
+            self.invoice_phone or self.invoice_email
+        ):
+            raise ValueError("credit sale needs customer phone or email")
         for p in self.payments:
             if p.method in (PaymentMethod.bkash, PaymentMethod.nagad) and not p.txn_id:
                 raise ValueError(f"txn_id required for {p.method.value}")
         return self
+
+
+class InvoiceDelivery(BaseModel):
+    sms_sent: bool = False
+    email_sent: bool = False
+    phone: str | None = None
+    email: str | None = None
+    detail: str | None = None
 
 
 class SaleItemResponse(BaseModel):
@@ -61,6 +77,13 @@ class PaymentResponse(BaseModel):
     txn_id: str | None
 
 
+class LoyaltySaleInfo(BaseModel):
+    points_redeemed: int = 0
+    points_earned: int = 0
+    points_balance: int = 0
+    points_discount: Decimal = Decimal("0")
+
+
 class SaleResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -73,10 +96,14 @@ class SaleResponse(BaseModel):
     device_id: str | None
     subtotal: Decimal
     discount: Decimal
+    points_discount: Decimal = Decimal("0")
+    points_redeemed: int = 0
     total: Decimal
     created_at: datetime
     items: list[SaleItemResponse] = []
     payments: list[PaymentResponse] = []
+    invoice_delivery: InvoiceDelivery | None = None
+    loyalty: LoyaltySaleInfo | None = None
 
 
 class ReturnCreate(BaseModel):

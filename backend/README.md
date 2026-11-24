@@ -15,6 +15,7 @@ POS + AI agent backend for stationery / general stores (Phitron final project).
 - Step 9: Knowledge docs + RAG `search_policy` done
 - Step 10: MCP HTTP + stdio (3 tools, catalog resource, daily prompt) done
 - Step 11: Next.js admin/manager portal done
+- Gap-fill: purchases/suppliers/returns/shifts UI, SMS/offers, CSV+OCR import, vans/deliveries, commissions, reorder/seasonal reports, offline sale sync, dual pricing on POS
 
 ## Quick start (local)
 

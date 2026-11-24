@@ -19,3 +19,4 @@ Thumbs.db
 # Logs
 frontend/frontend-dev.log
 *.log
+*.err

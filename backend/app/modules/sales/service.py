@@ -15,8 +15,11 @@ from app.models.sales import Payment, Return, Sale, SaleItem
 from app.models.stock import StockMovement
 from app.models.system import ReceiptLog
 from app.models.user import User
+from app.modules.customers import service as customers_service
 from app.modules.customers.service import get_customer_due
 from app.modules.sales.schemas import (
+    InvoiceDelivery,
+    LoyaltySaleInfo,
     ReceiptResponse,
     ReturnCreate,
     ReturnResponse,
@@ -41,7 +44,20 @@ async def _load_sale(session: AsyncSession, sale_id: UUID) -> Sale:
     return sale
 
 
-def _sale_response(sale: Sale) -> SaleResponse:
+def _sale_response(
+    sale: Sale,
+    invoice_delivery: InvoiceDelivery | None = None,
+    loyalty: LoyaltySaleInfo | None = None,
+) -> SaleResponse:
+    pts_disc = getattr(sale, "points_discount", None) or Decimal("0")
+    pts_red = int(getattr(sale, "points_redeemed", 0) or 0)
+    if loyalty is None and (pts_disc or pts_red):
+        loyalty = LoyaltySaleInfo(
+            points_redeemed=pts_red,
+            points_earned=0,
+            points_balance=0,
+            points_discount=pts_disc,
+        )
     return SaleResponse(
         id=sale.id,
         bill_no=sale.bill_no,
@@ -52,6 +68,8 @@ def _sale_response(sale: Sale) -> SaleResponse:
         device_id=sale.device_id,
         subtotal=sale.subtotal,
         discount=sale.discount,
+        points_discount=pts_disc,
+        points_redeemed=pts_red,
         total=sale.total,
         created_at=sale.created_at,
         items=sale.items,
@@ -65,7 +83,70 @@ def _sale_response(sale: Sale) -> SaleResponse:
             }
             for p in sale.payments
         ],
+        invoice_delivery=invoice_delivery,
+        loyalty=loyalty,
     )
+
+
+async def _deliver_invoice(
+    session: AsyncSession,
+    *,
+    sale: Sale,
+    phone: str | None,
+    email: str | None,
+    customer_id: UUID | None,
+) -> InvoiceDelivery:
+    """Send invoice SMS and/or email when contact is present (mock providers OK)."""
+    from app.integrations.notify import send_email, send_sms
+    from app.models.enums import SmsPurpose
+
+    phone = (phone or "").strip() or None
+    email = (email or "").strip() or None
+    delivery = InvoiceDelivery(phone=phone, email=email)
+
+    if not phone and not email:
+        delivery.detail = "No phone or email — print invoice manually"
+        return delivery
+
+    pts = getattr(sale, "points_discount", None) or Decimal("0")
+    pts_note = (
+        f" Points discount ৳{pts} ({getattr(sale, 'points_redeemed', 0)} pts)."
+        if pts and pts > 0
+        else ""
+    )
+    body = (
+        f"Dokan invoice {sale.bill_no}: subtotal ৳{sale.subtotal}, "
+        f"bill discount ৳{sale.discount},{pts_note} payable ৳{sale.total}. "
+        f"Thank you for your purchase."
+    )
+    bits: list[str] = []
+
+    if phone:
+        await send_sms(
+            session,
+            purpose=SmsPurpose.other,
+            to_phone=phone,
+            body=body,
+            customer_id=customer_id,
+            meta={"kind": "invoice", "bill_no": sale.bill_no, "sale_id": str(sale.id)},
+        )
+        delivery.sms_sent = True
+        bits.append(f"SMS → {phone}")
+
+    if email:
+        await send_email(
+            session,
+            to_email=email,
+            subject=f"Invoice {sale.bill_no}",
+            body=body,
+            customer_id=customer_id,
+            meta={"kind": "invoice", "bill_no": sale.bill_no, "sale_id": str(sale.id)},
+        )
+        delivery.email_sent = True
+        bits.append(f"Email → {email}")
+
+    delivery.detail = " · ".join(bits)
+    return delivery
 
 
 async def create_sale(session: AsyncSession, data: SaleCreate, user: User) -> SaleResponse:
@@ -110,7 +191,37 @@ async def create_sale(session: AsyncSession, data: SaleCreate, user: User) -> Sa
 
     if data.discount > subtotal:
         raise BusinessRuleError("Bill discount exceeds subtotal")
-    total = subtotal - data.discount
+
+    customer = await customers_service.resolve_customer_for_sale(
+        session,
+        customer_id=data.customer_id,
+        phone=data.invoice_phone,
+        email=data.invoice_email,
+        name=data.customer_name,
+    )
+
+    bill_after_discount = subtotal - data.discount
+    points_redeemed = 0
+    points_earned = 0
+    points_discount = Decimal("0")
+    loyalty_info: LoyaltySaleInfo | None = None
+
+    if data.points_to_redeem:
+        if customer is None:
+            raise BusinessRuleError("Find customer by phone/email to redeem points")
+        points_redeemed, points_earned, points_discount = await customers_service.apply_loyalty(
+            customer,
+            points_to_redeem=data.points_to_redeem,
+            purchase_total_before_points=bill_after_discount,
+        )
+    elif customer is not None:
+        points_earned = customers_service.points_earned_for_amount(bill_after_discount)
+        customer.loyalty_points = int(customer.loyalty_points or 0) + points_earned
+
+    total = bill_after_discount - points_discount
+    if total < 0:
+        raise BusinessRuleError("Total cannot be negative")
+
     paid = sum((p.amount for p in data.payments), Decimal("0"))
     if paid != total:
         raise BusinessRuleError(f"Payments ({paid}) must equal total ({total})")
@@ -120,25 +231,33 @@ async def create_sale(session: AsyncSession, data: SaleCreate, user: User) -> Sa
         Decimal("0"),
     )
     if credit_amount > 0:
-        assert data.customer_id is not None
-        customer = await session.get(Customer, data.customer_id)
         if customer is None:
-            raise NotFoundError("Customer not found")
+            raise BusinessRuleError("Credit sale needs a customer (phone + email)")
         due = await get_customer_due(session, customer.id)
         if due + credit_amount > customer.credit_limit:
             raise BusinessRuleError(
                 f"Credit limit exceeded (due {due}, limit {customer.credit_limit})"
             )
 
+    if customer is not None:
+        loyalty_info = LoyaltySaleInfo(
+            points_redeemed=points_redeemed,
+            points_earned=points_earned,
+            points_balance=int(customer.loyalty_points or 0),
+            points_discount=points_discount,
+        )
+
     sale = Sale(
         bill_no=_bill_no(),
-        customer_id=data.customer_id,
+        customer_id=customer.id if customer else None,
         user_id=user.id,
         shift_id=data.shift_id,
         branch_id=data.branch_id or user.branch_id,
         device_id=data.device_id,
         subtotal=subtotal,
         discount=data.discount,
+        points_discount=points_discount,
+        points_redeemed=points_redeemed,
         total=total,
     )
     session.add(sale)
@@ -168,7 +287,7 @@ async def create_sale(session: AsyncSession, data: SaleCreate, user: User) -> Sa
             Payment(
                 payment_type=PaymentType.sale,
                 sale_id=sale.id,
-                customer_id=data.customer_id,
+                customer_id=customer.id if customer else data.customer_id,
                 method=p.method,
                 amount=p.amount,
                 txn_id=p.txn_id,
@@ -176,8 +295,26 @@ async def create_sale(session: AsyncSession, data: SaleCreate, user: User) -> Sa
             )
         )
 
+    from app.modules.commissions.service import apply_commission_for_sale
+
+    await apply_commission_for_sale(session, sale)
+
+    invoice_phone = data.invoice_phone or (customer.phone if customer else None)
+    invoice_email = data.invoice_email or (customer.email if customer else None)
+    delivery = await _deliver_invoice(
+        session,
+        sale=sale,
+        phone=invoice_phone,
+        email=invoice_email,
+        customer_id=customer.id if customer else None,
+    )
+
     payload = {
         "bill_no": sale.bill_no,
+        "subtotal": str(subtotal),
+        "bill_discount": str(data.discount),
+        "points_discount": str(points_discount),
+        "points_redeemed": points_redeemed,
         "total": str(total),
         "discount": str(data.discount),
         "items": [
@@ -189,6 +326,15 @@ async def create_sale(session: AsyncSession, data: SaleCreate, user: User) -> Sa
             for r in line_rows
         ],
         "payments": [{"method": p.method.value, "amount": str(p.amount)} for p in data.payments],
+        "invoice_delivery": delivery.model_dump(),
+        "loyalty": loyalty_info.model_dump(mode="json") if loyalty_info else None,
+        "reconciliation": {
+            "subtotal": str(subtotal),
+            "minus_bill_discount": str(data.discount),
+            "minus_points_discount": str(points_discount),
+            "equals_payable": str(total),
+            "payments_sum": str(paid),
+        },
     }
     session.add(
         ReceiptLog(sale_id=sale.id, printed_by=user.id, is_copy=False, payload=payload)
@@ -201,7 +347,7 @@ async def create_sale(session: AsyncSession, data: SaleCreate, user: User) -> Sa
         raise ConflictError("Duplicate transaction id or bill number") from exc
 
     loaded = await _load_sale(session, sale.id)
-    return _sale_response(loaded)
+    return _sale_response(loaded, invoice_delivery=delivery, loyalty=loyalty_info)
 
 
 async def list_sales(session: AsyncSession, limit: int = 50) -> list[SaleResponse]:

@@ -10,6 +10,7 @@ class SalesSummaryResponse(BaseModel):
     to_date: date
     total_sales: Decimal
     total_discount: Decimal
+    total_points_discount: Decimal = Decimal("0")
     bill_count: int
     cash: Decimal
     bkash: Decimal
